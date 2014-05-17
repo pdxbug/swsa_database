@@ -12,7 +12,7 @@ This file will destroy the user's session effectively logging them out. They wil
 session_destroy();
 
 //include server url string
-include '../../../server_url.php';
+include '../../../docs/server_url.php';
 
 //redirect the user to the login page
 header("Location: http://$server_url/user_login.php");

@@ -8,10 +8,10 @@ This page will update the database with the user's new information
 */
 
 //include server url string
-include '../../../server_url.php';
+include '../../../docs/server_url.php';
 
 //include database connect file
-include '../../../db_connection_scottb.php';
+include '../../../docs/db_connection_scottb.php';
 
 $id = $_SESSION['user_id'];
 $date = date('Y-m-d');

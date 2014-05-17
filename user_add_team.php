@@ -11,7 +11,7 @@ Page created for SWSA to allow players/admins to update the teams.
 */
 
 //include server url string
-include '../../../server_url.php';
+include '../../../docs/server_url.php';
 
 //check to see if the user is logged in, else redirect them to the login page if not
 if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
@@ -22,7 +22,7 @@ if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
 }	
 
 //include database connect file
-include '../../../db_connection_scottb.php';
+include '../../../docs/db_connection_scottb.php';
 
 if(isset($_POST['whichLeague'])){
 	$query = "SELECT id FROM team_list WHERE team_name = '$_POST[name]' AND league = $_POST[whichLeague]";

@@ -28,7 +28,7 @@ if(isset($_POST['notification'])){
 }
 if((isset($_POST['admin']))&&(is_numeric($_POST['id']))){
 	//include database connect file
-	include '../../../db_connection_scottb.php';
+	include '../../../docs/db_connection_scottb.php';
 	if($_POST['admin']=="make"){
 		$post = "UPDATE player_list SET admin=1 WHERE id='$_POST[id]'";
 	} else {
