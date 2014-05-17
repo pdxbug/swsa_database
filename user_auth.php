@@ -33,7 +33,7 @@ $_SESSION['login_fail'] = 0;
 include	'server_url.php';
 
 //include database connect file
-include 'db_connection_scottb.php';//xxx change this before making pubic
+include '../../../db_connection_scottb.php';//xxx change this before making pubic
 
 //get the info from the user_login.htm form
 $fname = $_POST["fname"];

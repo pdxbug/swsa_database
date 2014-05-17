@@ -18,7 +18,7 @@ if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
 }	
 
 //include database connect file
-include 'db_connection_scottb.php';
+include '../../../db_connection_scottb.php';
 
 	$query_team = "SELECT team_name,rep_1,rep_2 FROM team_list WHERE id = '$_GET[whichTeam]'";
 	$result_team = mysql_query($query_team, $conn);

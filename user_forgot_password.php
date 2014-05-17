@@ -11,7 +11,7 @@ This file will check to verify the user exists with their Name or Email Address 
 include	'server_url.php';
 
 //include database connect file
-include 'db_connection_scottb.php';
+include '../../../db_connection_scottb.php';
 
 
 if($_GET['reset']==0){//the user is just looking for their username or information about resetting a password for an account, do this function

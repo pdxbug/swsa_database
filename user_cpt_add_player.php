@@ -11,7 +11,7 @@ This page will verify the player is a captain for the team and then update the t
 include 'server_url.php';
 
 //include database connect file
-include 'db_connection_scottb.php';
+include '../../../db_connection_scottb.php';
 
 //check to see if the user is logged in, else redirect them to the login page if not
 if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){

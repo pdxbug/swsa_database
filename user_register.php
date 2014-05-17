@@ -12,7 +12,7 @@ This page is provided to register new users to the SWSA Player List page. This p
 include	'server_url.php';
 
 //include database connect file
-include 'db_connection_scottb.php';
+include '../../../db_connection_scottb.php';
 
 //retrieve variables from user_registration.htm form
 $to="";

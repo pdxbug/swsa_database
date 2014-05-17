@@ -22,7 +22,7 @@ if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
 }	
 
 //include database connect file
-include 'db_connection_scottb.php';
+include '../../../db_connection_scottb.php';
 
 if(isset($_POST['whichLeague'])){
 	$query = "SELECT id FROM team_list WHERE team_name = '$_POST[name]' AND league = $_POST[whichLeague]";
