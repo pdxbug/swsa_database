@@ -46,14 +46,14 @@ if ($conn) {
 	$query = "SELECT id,fname,lname,card_id,card_exp,gender,team,phone,email,admin FROM player_list WHERE fname = '$fname' AND lname ='$lname'"; //creating the query for MYSQL to look for the user's handle
 	//echo $query;
 	$result = mysql_query($query, $conn); //sending the query to the database and capturing it in a variable
-	if(!result){ // add this check.
+	if(!$result){ // add this check.
 		die('Invalid query: ' . mysql_error());
 		exit;
 	} else {
 		$num_rows = mysql_num_rows($result); //set a variable to check if there are results
 		if($num_rows==0) { //verifying that data was captured to make sure the username exists
 			$_SESSION['login_fail'] = 1;//set the session login failure to username does not exist
-			header("Location: http://$server_url/user_login.php");//send the user to the login page with corresponding error code
+			//header("Location: http://$server_url/user_login.php");//send the user to the login page with corresponding error code
 			exit;
 		} else {
 			while($row = mysql_fetch_array($result)){ //putting the captured data into variables
