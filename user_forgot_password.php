@@ -8,7 +8,7 @@ This file will check to verify the user exists with their Name or Email Address 
 */
 
 //include server url string
-include	'server_url.php';
+include '../../../server_url.php';
 
 //include database connect file
 include '../../../db_connection_scottb.php';

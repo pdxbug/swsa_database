@@ -30,7 +30,7 @@ function file_put_contents($filename, $data, $file_append = false) {
 $_SESSION['login_fail'] = 0;
 
 //include server url string
-include	'server_url.php';
+include '../../../server_url.php';
 
 //include database connect file
 include '../../../db_connection_scottb.php';//xxx change this before making pubic

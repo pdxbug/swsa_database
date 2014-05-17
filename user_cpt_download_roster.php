@@ -8,7 +8,7 @@ This file is provided for Captains of the SWSA player database website. On it th
 */
 
 //include server url string
-include	'server_url.php';
+include '../../../server_url.php';
 
 //check to see if the user is logged in, else redirect them to the login page if not
 if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){

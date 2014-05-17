@@ -8,7 +8,7 @@ This page will verify the player is a captain for the team and then update the t
 */
 
 //include server url string
-include 'server_url.php';
+include '../../../server_url.php';
 
 //include database connect file
 include '../../../db_connection_scottb.php';
