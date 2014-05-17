@@ -1,0 +1,77 @@
+<?php  session_start(); //start the session 
+
+/* Created by Kerry Mraz for SWSA
+Created 6/18/2013
+
+Contact kerry@fossil-bug.com
+
+Page Information:
+Page created for SWSA to allow admins to update the notification text file and create/remove admins. 
+*/
+
+//include server url string
+include	'server_url.php';
+
+//check to see if the user is logged in, else redirect them to the login page if not
+if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)||($_SESSION['admin']!=1)){
+	$_SESSION['login_fail']=5;
+	header("Location: http://$server_url/user_login.php?page=admin_updatehtm");
+	//print_r($_SESSION);
+	exit;
+}	
+
+//include database connect file
+include 'db_connection_scottb.php';
+?>
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<title>SWSA Player - Member Home</title>
+<link href="css/style.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+
+<div id="wrapper">
+	<div id="menu_left">
+		<p>Hello <?php echo $_SESSION['fname']; ?></p>
+		
+		<?php include 'user_left_menu.php'; ?>
+		
+	</div><!-- closes menu_left div -->
+	<div id="content_right">
+		<h3> Admin Update Page</h3>
+		<?php 
+			if(isset($_GET['update'])){
+				if($_GET['update']=="success"){
+					echo '<font color="#ff0000">Update successful.</font><br />';
+				} else {
+					echo '<font color="#ff0000">Update failed.</font><br />';
+				}
+			}
+			if((isset($_GET['notification']))&&($_GET['notification']=="update")){
+				$alert_notification = file_get_contents('alert_notification.txt');//location of the text file to retrieve content
+				echo '<form name="update_notification" id="update_notification" action="admin_update.php" method="post">
+				<label for="notification">Enter a Notification for the Player Home Area:</label><br />
+				<textarea name="notification" rows="4" cols="83">
+					' . $alert_notification . '
+				</textarea><br />
+				<input type="submit" name="submit" value="Submit Notification" />
+				</form>';
+			}
+			if((isset($_GET['admin']))&&($_GET['admin']=="make")){
+				
+				
+				
+			}
+		?>
+	</div>
+</div>
+
+<?php
+//close the database connection
+				mysql_close($conn);
+?>

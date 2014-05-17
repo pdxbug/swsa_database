@@ -1,0 +1,175 @@
+<?php session_start(); //start the session 
+
+/* Created by Kerry Mraz for the user of SWSA
+Created 3/9/14
+
+Page Information:
+This page will allow team captains to view a list of people interested in joining a team. The captain will be able to sort the players by: league, position, date posted, name, (gender in future if leagues are not co-ed)
+*/
+
+//include server url string
+include 'server_url.php';
+
+//include database connect file
+include 'db_connection_scottb.php';
+
+//check to see if the user is logged in, else redirect them to the login page if not
+if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
+	$_SESSION['login_fail']=5;
+	header("Location: http://$server_url/user_login.php?page=user_plr_pick_listhtm");
+	exit;
+}
+
+if(isset($_GET['whichLeague'])){
+	$whichLeague = $_GET['whichLeague'];
+	if($whichLeague == 0){//check to see if person is over 30
+		$age = 30;
+	} else if($whichLeague == 1){//check to see if person is over 40
+		$age = 40;
+	} else if($whichLeague == 2){//coed open, no age limit
+		$age = 0;
+	}
+}
+	
+	date_default_timezone_set('America/Los_Angeles');
+
+	include('LookAndFeel.php');
+	pagebegin('SWSA: Player Pickup List');
+?>
+	<link href="css/style.css" rel="stylesheet" type="text/css" />
+	</head>
+
+	<body>
+	
+		<div id="wrapper">
+		<h3>Southwest Washington Soccer Association</h3> 
+		<div id="menu_left">
+			<p>Hello <?php echo $_SESSION['fname']; ?></p>
+			
+			<?php include 'user_left_menu.php'; ?>
+			
+		</div><!-- closes menu_left div -->
+		<div id="content_right">
+			<h2>SWSA Player Pickup List 
+			<?php 
+				if(isset($_GET['whichLeague'])){
+					if($whichLeague == "0"){
+						echo ' - Co-ed 30+';
+					}
+					if($whichLeague == 1){
+						echo ' - Co-ed 40+';
+					}
+					if($whichLeague == 2){
+						echo ' - Co-ed Open';
+					}
+				}
+			?>
+			</h2>
+			
+<!--captain needs to first sort by the league they intend to draw players from
+autosubmit script found here: http://www.htmlgoodies.com/beyond/javascript/article.php/3902606-->
+			<form action="user_player_pickup.htm" method="GET" name="select_league">
+				<label for="whichLeague">League:</label>
+				<select name="whichLeague" onchange="this.form.submit()">
+					<option value="null"<?php if((isset($whichLeague))&&($whichLeague=="null")){echo 'selected';}?>>Select One</option>
+					<option value="0"<?php if((isset($whichLeague))&&($whichLeague=="0")){echo 'selected';}?>>Co-ed 30+</option>
+					<option value="1"<?php if((isset($whichLeague))&&($whichLeague==1)){echo 'selected';}?>>Co-ed 40+</option>
+					<option value="2"<?php if((isset($whichLeague))&&($whichLeague==2)){echo 'selected';}?>>Co-ed Open</option>
+				</select>
+				<noscript><input type="submit" value="Submit"></noscript>
+			</form>
+			<?php
+				if(isset($_GET['whichLeague'])){
+					$cpt_query = "SELECT id,team_name FROM team_list WHERE league = $whichLeague AND (rep_1 = '$_SESSION[card_id]' OR rep_2 = '$_SESSION[card_id]')";
+					$cpt_result = mysql_query($cpt_query,$conn);
+					if(!$cpt_result){ // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$cpt_result_num_rows = mysql_num_rows($cpt_result);
+					$cpt_teams = array();
+					$i=0;
+					while ($cpt_result_row = mysql_fetch_array($cpt_result, MYSQL_ASSOC)){
+						$cpt_teams[$i][id] = $cpt_result_row[id];
+						$cpt_teams[$i][team_name] = $cpt_result_row[team_name];
+						$i++;
+					}
+					//print_r($cpt_teams);
+					echo '<p>This list is provided for players that would like to find a team and captains looking to pickup free players.</p>';
+						//we need to get a list of the players for the selected league and present them to the captains. The list has already been filtered by age when the player signed up for the list, so we don't need to do extra work with filtering. All we need to do is query the player_list table by league, grab the player data, and then present in a table		
+			
+				echo '<table border="1">
+					<tr>
+						<th><a href="user_player_pickup.htm?whichLeague=' . $_GET['whichLeague'] . '&order=lname">Name</a></th><th><a href="user_player_pickup.htm?whichLeague=' . $_GET['whichLeague'] . '&order=pref_pos">Pref. Pos.</a></th><th><a href="user_player_pickup.htm?whichLeague=' . $_GET['whichLeague'] . '&order=timestamp">Date Posted</a></th>';
+						if($cpt_result_num_rows>0){
+							echo '<th>Add to Team</th>';
+						}
+					echo '</tr>';
+					
+					$query = "SELECT player_pickup.id AS pickupid, player_pickup.player_id, player_pickup.timestamp, player_list.id, player_list.lname, player_list.fname, player_list.pref_pos, player_list.gender, player_list.email FROM player_pickup INNER JOIN player_list ON player_pickup.player_id=player_list.id WHERE player_pickup.league = $_GET[whichLeague]";
+					if(isset($_GET['order'])){
+						if($_GET['order']=="timestamp"){
+							$query .= " ORDER BY player_pickup.timestamp";
+						} else if($_GET['order']=="pref_pos"){
+							$query .= " ORDER BY player_list.pref_pos";
+						} else if($_GET['order']=="lname"){
+							$query .= " ORDER BY player_list.lname";
+						} 
+					}
+					//echo $query;
+					$result = mysql_query($query,$conn);
+					if(!$result){ // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$result_num_rows = mysql_num_rows($result);
+					if($result_num_rows==0){
+						echo '<td><font color="#FF0000">There are no players listed for pickup for this league at this time.</font></td>';
+					} else {
+						while($row = mysql_fetch_array($result,MYSQL_ASSOC)){
+							echo '<tr>';
+								echo '<td>' . $row['lname'] . ', ' . $row['fname'] . '</td><td>';
+								if($row['pref_pos']=="m"){
+									echo 'Midfield';
+								} else if($row['pref_pos']=="k"){
+									echo 'Keeper';
+								} else if($row['pref_pos']=="d"){
+									echo 'Defense';
+								} else if($row['pref_pos']=="f"){
+									echo 'Forward';
+								} else {
+									echo 'None';
+								} 
+								echo '</td><td>' . $row['timestamp'] . '</td>';
+								if($cpt_result_num_rows>0){
+									echo '<td>
+										<form action="user_cpt_add_player.php" method="GET" name="add_player">
+											<input type="hidden" name="whichLeague" value="' . $whichLeague . '" />
+											<input type="hidden" name="id" value="' . $row[player_id] , '" />
+											<input type="hidden" name="pickup" value="' . $row[pickupid] . '" />
+											<select name="whichTeam">
+												<option value=""></option>';
+													foreach($cpt_teams as &$value){
+														echo '<option value="' . $value[id] . '">' . $value[team_name] . '</option>';
+													}
+											echo '</select>
+											<input type="submit" name="submit" value="Add" />
+										</form>
+									</td>';
+								}
+							echo '</tr>';
+						}
+					}
+				echo '</table>';
+				}//closes if isset $_GET[whichLeague]
+			?>
+			</div><!-- closes content_right div-->
+		<?php pageend('2014/04/24 14:35:14'); ?> 
+		</div><!-- closes wrapper div -->
+	</body>
+</html>
+
+<?php
+//close the database connection
+mysql_close($conn);
+?>

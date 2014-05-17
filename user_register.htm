@@ -1,0 +1,427 @@
+<?php session_start(); // start up your PHP session!	
+
+/*Created by Kerry Mraz for swsa
+created: 04/03/2012
+modified: 04/24/2014
+
+Page Information:
+This page is provided to register new users to the website. It will request required and optional information from the user before it will allow the user to proceed to the next page. If the required information is not entered, the user will be provided with basic alerts asking them to fill in the required information. It will also contain a CAPTCHA code to prevent bots from accessing the website further than this page. If the user is re-directed back to this page due to a database error, it will provide basic information to the user and an option to contact the admin for resolution if the error continues. The registration_state keeps track if this is their first time to the page or if they have been redirected and allows the information to be repopulated from the redirect.
+*/
+
+//include server url string
+include	'server_url.php';
+
+/**
+ * Project:     Securimage: A PHP class for creating and managing form CAPTCHA images<br />
+ * File:        form.php<br /><br />
+ *
+ * This is a very simple form sending a username and pword.<br />
+ * It demonstrates how you can integrate the image script into your code.<br />
+ * By creating a new instance of the class and passing the user entered code as the only parameter, you can then immediately call $obj->checkCode() which will return true if the code is correct, or false otherwise.<br />
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or any later version.<br /><br />
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.<br /><br />
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA<br /><br />
+ * 
+ * Any modifications to the library should be indicated clearly in the source code 
+ * to inform users that the changes are not a part of the original software.<br /><br />
+ *
+ * If you found this script useful, please take a quick moment to rate it.<br />
+ * http://www.hotscripts.com/rate/49400.html  Thanks.
+ *
+ * @link http://www.phpcaptcha.org Securimage PHP CAPTCHA
+ * @link http://www.phpcaptcha.org/latest.zip Download Latest Version
+ * @link http://www.phpcaptcha.org/Securimage_Docs/ Online Documentation
+ * @copyright 2007 Drew Phillips
+ * @author drew010 <drew@drew-phillips.com>
+ * @version 1.0.3.1 (March 23, 2008)
+ * @package Securimage
+ *
+ */
+
+$registration_state = $_GET['registration_state'];
+
+include('LookAndFeel.php');
+pagebegin('SWSA: New Player Registration Page');
+?>
+
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<link href="css/style.css" rel="stylesheet" type="text/css" />
+
+<!-- This Javascript will automatically move the phone fields to the next box as users enter information. ------------------------------->
+<SCRIPT LANGUAGE="JavaScript">
+function moveOnMax(field,nextFieldID){
+  if(field.value.length >= field.maxLength){
+    document.getElementById(nextFieldID).focus();
+  }
+}
+
+</script>
+
+<!-- This Javascript was found at http://www.webreference.com/programming/javascript/confirm/ and modified to fit the form below. It will verify that all the required fields are filled in and that the passwords entered match before the user leaves the page. This prevents the need to check via server side.-->
+<SCRIPT LANGUAGE=JAVASCRIPT>
+<!--
+function verify(){
+    if(document.forms[0].fname.value==""){
+        alert("Please enter First Name in the field.");
+        return false;
+	} else if(document.forms[0].lname.value==""){
+        alert("Please enter Last Name in the field.");
+        return false;
+	} else if(document.forms[0].card_id.value==""){
+        alert("Please enter a Card ID in the field.");
+        return false;
+	} else if(document.forms[0].email.value==""){
+        alert("Please enter an Email in the field.");
+        return false; 
+	} else if(document.forms[0].email_check.value!=document.forms[0].email.value){
+        alert("Emails do not match.");
+        return false;		
+	} else if(isNaN(parseInt(document.forms[0].pnumber01.value))||document.forms[0].pnumber01.value.length<3){
+        alert("Please enter a valid phone number.");
+        return false;
+	} else if(isNaN(parseInt(document.forms[0].pnumber02.value))||document.forms[0].pnumber02.value.length<3){
+        alert("Please enter a valid phone number.");
+        return false;
+	} else if(isNaN(parseInt(document.forms[0].pnumber03.value))||document.forms[0].pnumber03.value.length<4){
+        alert("Please enter a valid phone number.");
+        return false;
+	} else {
+		return true;
+	}
+}
+//-->
+</SCRIPT> 
+
+<style type="text/css">
+
+#dhtmltooltip{
+position: absolute;
+width: 150px;
+border: 2px solid black;
+padding: 2px;
+background-color: lightyellow;
+visibility: hidden;
+z-index: 100;
+/*Remove below line to remove shadow. Below line should always appear last within this CSS*/
+filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
+}
+
+</style>
+
+<!-- pop up calendar for selecting dob field 
+information located at: http://www.triconsole.com/php/calendar_datepicker.php -->
+<link href="calendar/calendar.css" rel="stylesheet" type="text/css" />
+<script language="javascript" src="calendar/calendar.js"></script>
+</head>
+
+<body>
+<div id="wrapper">
+	<h3>Southwest Washington Soccer Association - Player Registration</h3> 
+	<div id="content_right">
+		<!-This is the form for logging in registered users ---------------------------------------------------------------------------
+						---The onSubmit allows the Javascript to verify the fields have information before posting it to user_register.php ---/>	
+						
+						
+		<p>The optional information is used for statistical purposes only. Your personal information will never be used in any way other than registration verification and for our organization to provide notifications. You can remove your information at anytime by logging in again and using the Member Update Information Page. </p>
+						
+						<?php
+							if(isset($_SESSION['registration_error'])){
+								if ($_SESSION['registration_error']==3){//registration error
+									echo '<font color="red">There was an error during registration. Please try again. <br />If this error persists, please contact kerry@fossil-bug.com with the follow error. registration_error=='.$_SESSION['registration_error'].' on user_registration.htm/php.</font>';
+									$_SESSION['registration_error']=0; //reset the variable
+								}
+								if ($_SESSION['registration_error']==2){//username exists already
+									$_SESSION['registration_error']=0; //reset variable 
+									echo '<font color="red">This player already exists in the database. If you have already registered please <a href="user_login.php" title="Link to the SWSA Player Login Page>login</a> or <a href="user_forgot_password.htm" title="Link to forgot password page">reset the password</a>.</font>';
+								}
+								if ($_SESSION['registration_error']==1){//captcha error
+									$_SESSION['registration_error']=0; //reset variable 
+									echo '<font color="red">The CAPTCHA code you entered was not correct. Please try again. I know, we all hate CAPTCHA. What do we hate more than CAPTCHA?!? BOTS AND SPAM. Please use CAPTCHA wisely.</font>';
+								}
+							}	
+							
+						?>
+						
+						<table border="1">
+							<tr><th>
+								Please enter the information requested below to proceed.<br />
+								<font color="#cc0000" size="2">* (required)</font>
+							</th></tr>
+							<tr><td>
+								
+									<form action="user_register.php" method="post" onSubmit="return verify()">
+									<table>
+										<tr><td class="form_label">
+											<label for="fname">First Name: (max. 20) </label><font color="#cc0000" size="4">*</font>
+										</td><td>    
+											<input name="fname" type="text" id="fname" size="40" maxlength="20"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['fname'] . '"';
+													}
+												?>
+											/>
+										</td><td>  
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onMouseover="ddrivetip('Please enter your first name.','white', 200)"; 
+							onMouseout="hideddrivetip()" /> 
+										</td></tr>
+										<tr><td class="form_label">
+											<label for="lname">Last Name: (max. 20)</label><font color="#cc0000" size="4">*</font>
+										</td><td>    
+											<input name="lname" type="text" id="lname" size="40" maxlength="20"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['lname'] . '"';
+													}
+												?>
+											/>
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('Please enter your last name.','white', 200)"; onmouseout="hideddrivetip()" />			
+										</td></tr>
+										<tr><td class="form_label">
+											<label for="card_id">SWSA Card ID:</label><font color="#cc0000" size="4">*</font>
+										</td><td>    
+											<input name="card_id" type="text" id="card_id" size="40" maxlength="15"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['card_id'] . '"';
+													}
+												?>
+											/>
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('The number entered here is your WSASA ID number provided on your SWSA ID card. If you have not received a card, please contact WSASA at 425-485-7855 or www.wssa.org ','white', 300)"; onmouseout="hideddrivetip()" />			
+										</td></tr>
+										<tr> <td class="form_label">
+											<label for="card_exp">SWSA Card Exp <font color="#cc0000" size="4">*</font></label>
+										</td><td>
+											<?php
+												//get class into the page
+												require_once('calendar/classes/tc_calendar.php');
+													
+													//instantiate class and set properties
+													$myCalendar = new tc_calendar("date1", true);
+													$myCalendar->setIcon("calendar/images/iconCalendar.gif");
+													$myCalendar->setPath("calendar/");
+													$myCalendar->dateAllow('2013-01-01', '2025-12-25');
+												if($registration_state==0){
+													$myCalendar->setDate(1, 1, 2013);
+													
+													//output the calendar
+												} else {
+													$dob_exploded = explode("-", $_SESSION['card_exp']);
+													$dob_year = $dob_exploded[0];
+													if($dob_exploded[1]>9){
+														$dob_month = $dob_exploded[1];
+													} else {
+														$dob_month_split = str_split($dob_exploded[1]);
+														$dob_month = $dob_month_split[1];
+													}
+													$dob_day = $dob_exploded[2];
+													//echo $dob_day . ', ' . $dob_month . ', ' . $dob_year . '<br />';//check to verify we have things in the correct format
+													$myCalendar->setDate($dob_day, $dob_month, $dob_year);
+												}
+												$myCalendar->writeScript();
+												$theDate = isset($_REQUEST["date1"]) ? $_REQUEST["date1"] : "";
+											?>   
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('Please enter your date of birth.','white', 200)"; onmouseout="hideddrivetip()" />			
+										</td></tr>
+										<tr><td class="form_label">
+											<label for="email">Email address: (max. 50) </label><font color="#cc0000" size="4">*</font>
+										</td><td>    
+											<input name="email" type="text" id="email" size="40" maxlength="50"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['email'] . '"';
+													}
+												?>
+											/>
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('Please enter your Email address.','white', 200)"; onmouseout="hideddrivetip()" />			
+										</td></tr>
+										<tr><td class="form_label">
+											<label for="email_check">Re-enter Email address:</label> <font color="#cc0000" size="4">*</font>
+										</td>
+										<td>    
+											<input name="email_check" type="text" id="email_check" size="40" maxlength="50"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['email'] . '"';
+													}
+												?>
+											/>
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('You will need to enter your Email address twice to verify it.','white', 200)"; onmouseout="hideddrivetip()" />			
+										</td></tr>
+										<tr><td class="form_label">
+											<label for="pnumber01">Phone Number:</label> <font color="#cc0000" size="4">*</font>
+										</td>
+										<td>
+											<input name="pnumber01" type="text" size="4" maxlength="3"  onkeyup="moveOnMax(this,'pnumber02')"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['pnumber01'] . '"';
+													}
+												?>
+											/>
+											-
+											<input id="pnumber02" name="pnumber02" type="text" size="4" maxlength="3" onKeyUp="moveOnMax(this,'pnumber03')"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['pnumber02'] . '"';
+													}
+												?>
+											/>
+											-
+											<input id="pnumber03" name="pnumber03" type="text" size="5" maxlength="4"
+												<?php 
+													if ($registration_state==1){
+														echo 'value="' . $_SESSION['pnumber03'] . '"';
+													}
+												?>
+											/>					  
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('Please enter your phone number.','white', 200)"; onmouseout="hideddrivetip()" />			
+										</td></tr>
+										<tr><td class="form_label">
+											<label for="pref_pos">Preferred Position: (optional)</label> 
+										</td>
+										<td>    
+											<select name="pref_pos">
+												<option value="n" selected="selected">None</option>
+												<option value="k">Keeper</option>
+												<option value="d">Defender</option>
+												<option value="m">Mid-Fielder</option>
+												<option value="f">Forward</option>
+											</select>
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('You can provide your preferred playing position to help teams find you. This is optional.','white', 200)"; onmouseout="hideddrivetip()" />			
+										</td></tr>
+										<tr><td>
+											Gender: <font color="#cc0000" size="4">*</font>
+										</td><td>
+											<input type="radio" name="gender" value="m" selected />Male 
+											<input type="radio" name="gender" value="f" />Female
+										</td><td>
+											<img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onmouseover="ddrivetip('Provide your gender. This is necessary for captains to find players for teams and will be useful if SWSA database has gender specific teams in the future.','white', 200)"; onmouseout="hideddrivetip()" />	
+										</td></tr>
+										<tr><td class="form_label">
+											<!-- pass a session id to the query string of the script to prevent ie caching -->
+											<label for="captcha">Security Image:</label><font color="#cc0000" size="4">*</font>
+										</td>
+										<td>
+											<table style="padding:0px; margin:0px;">
+												<tr><td>
+													<img id="captcha" src="http://<?php echo $server_url ?>/securimage/securimage_show.php" alt="CAPTCHA Image" />
+				<a href="http://<?php echo $server_url ?>/securimage/securimage_play.php" style="font-size: 13px"></a><br />
+								<a href="#" onclick="document.getElementById(\'captcha\').src = \'http://<?php echo $server_url ?>/scott/swsa/securimage/securimage_show.php?\' + Math.random(); return false">Reload Image</a>
+												</td><td>
+													<input type="text" name="captcha_code" size="10" maxlength="6" />
+												</td></tr>
+									</table>		
+										</td></tr>
+										<tr><td style="text-align:left;"> 
+											<input type="Reset" value="Reset Form" onClick="this.form.reset()" /> 
+										</td><td>&nbsp;
+											
+										</td><td style="text-align:right;">
+											<input name="Submit" type="submit" value="Submit" />
+										</td></tr>
+										<tr></tr>
+									</table>
+								</form>
+								</td></tr>
+								</table>
+							</td></tr>
+						</table>
+		</div><!-- closes content right div -->
+	<?php pageend('2014/04/23 13:57:14'); ?>
+	</div><!-- closes wrapper div -->
+				
+	<div id="dhtmltooltip"></div>
+
+	<script type="text/javascript">
+	
+	/***********************************************
+	* Cool DHTML tooltip script- © Dynamic Drive DHTML code library (www.dynamicdrive.com)
+	* This notice MUST stay intact for legal use
+	* Visit Dynamic Drive at http://www.dynamicdrive.com/ for full source code
+	***********************************************/
+	
+	var offsetxpoint=-60 //Customize x offset of tooltip
+	var offsetypoint=20 //Customize y offset of tooltip
+	var ie=document.all
+	var ns6=document.getElementById && !document.all
+	var enabletip=false
+	if (ie||ns6)
+	var tipobj=document.all? document.all["dhtmltooltip"] : document.getElementById? document.getElementById("dhtmltooltip") : ""
+	
+	function ietruebody(){
+	return (document.compatMode && document.compatMode!="BackCompat")? document.documentElement : document.body
+	}
+	
+	function ddrivetip(thetext, thecolor, thewidth){
+	if (ns6||ie){
+	if (typeof thewidth!="undefined") tipobj.style.width=thewidth+"px"
+	if (typeof thecolor!="undefined" && thecolor!="") tipobj.style.backgroundColor=thecolor
+	tipobj.innerHTML=thetext
+	enabletip=true
+	return false
+	}
+	}
+	
+	function positiontip(e){
+	if (enabletip){
+	var curX=(ns6)?e.pageX : event.clientX+ietruebody().scrollLeft;
+	var curY=(ns6)?e.pageY : event.clientY+ietruebody().scrollTop;
+	//Find out how close the mouse is to the corner of the window
+	var rightedge=ie&&!window.opera? ietruebody().clientWidth-event.clientX-offsetxpoint : window.innerWidth-e.clientX-offsetxpoint-20
+	var bottomedge=ie&&!window.opera? ietruebody().clientHeight-event.clientY-offsetypoint : window.innerHeight-e.clientY-offsetypoint-20
+	
+	var leftedge=(offsetxpoint<0)? offsetxpoint*(-1) : -1000
+	
+	//if the horizontal distance isn't enough to accomodate the width of the context menu
+	if (rightedge<tipobj.offsetWidth)
+	//move the horizontal position of the menu to the left by it's width
+	tipobj.style.left=ie? ietruebody().scrollLeft+event.clientX-tipobj.offsetWidth+"px" : window.pageXOffset+e.clientX-tipobj.offsetWidth+"px"
+	else if (curX<leftedge)
+	tipobj.style.left="5px"
+	else
+	//position the horizontal position of the menu where the mouse is positioned
+	tipobj.style.left=curX+offsetxpoint+"px"
+	
+	//same concept with the vertical position
+	if (bottomedge<tipobj.offsetHeight)
+	tipobj.style.top=ie? ietruebody().scrollTop+event.clientY-tipobj.offsetHeight-offsetypoint+"px" : window.pageYOffset+e.clientY-tipobj.offsetHeight-offsetypoint+"px"
+	else
+	tipobj.style.top=curY+offsetypoint+"px"
+	tipobj.style.visibility="visible"
+	}
+	}
+	
+	function hideddrivetip(){
+	if (ns6||ie){
+	enabletip=false
+	tipobj.style.visibility="hidden"
+	tipobj.style.left="-1000px"
+	tipobj.style.backgroundColor=''
+	tipobj.style.width=''
+	}
+	}
+	
+	document.onmousemove=positiontip
+	
+	</script>
+</body>
+</html>

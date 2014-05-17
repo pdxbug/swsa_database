@@ -1,0 +1,1324 @@
+<?php session_start(); //start the session 
+
+/* Created by Kerry Mraz for the user of SWSA
+Created 4/5/2012
+Modified 4/23/14
+
+Page Information:
+This page will allow users of the SWSA pages to view teams, update profile info, receive alerts and more
+*/
+
+//include server url string
+include 'server_url.php';
+
+//check to see if the user is logged in, else redirect them to the login page if not
+if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
+	$_SESSION['login_fail']=5;
+	header("Location: http://$server_url/user_login.php?page=user_mainhtm");
+	exit;
+}
+
+if(isset($_GET['id'],$_GET['fname'],$_GET['lname'])&&($_GET['id']=="search_now")){
+	if(($_GET['fname']=="")||($_GET['lname']=="")){
+		header("Location: http://$server_url/user_main.htm?id=search&error=1");//send user back and provide feedback
+		exit;
+	}
+}
+if((isset($_GET['whichTeam']))&&($_GET['whichTeam']=="")){
+	header("Location: http://$server_url/user_main.htm?id=search&error=2");//send user back and provide feedback
+	exit;
+}
+
+if (isset($_SESSION['securimage_code_value'])){
+	unset($_SESSION['securimage_code_value']);
+} 	
+if (isset($_SESSION['check_bit_01'])){
+	unset($_SESSION['check_bit_01']);
+} 	
+if (isset($_SESSION['reset_id'])){
+	unset($_SESSION['reset_id']);
+} 	
+if (isset($_SESSION['reset_fname'])){
+	unset($_SESSION['reset_fname']);
+} 	
+if (isset($_SESSION['reset_email'])){
+	unset($_SESSION['reset_email']);
+}	
+if (isset($_SESSION['reset_card_id'])){
+	unset($_SESSION['reset_card_id']);
+}	
+if (isset($_SESSION['login_attempts'])){
+	unset($_SESSION['login_attempts']);
+}
+
+if(isset($_POST['team'])){
+	$team = $_POST['team'];
+	header("Location: http://$server_url/user_main.htm?whichTeam=$team");
+	exit;
+}
+
+//include database connect file
+include 'db_connection_scottb.php';
+
+include('LookAndFeel.php');//Scott_s look and feel settings for the site
+pagebegin('SWSA: Player Home');
+?>
+<link href="css/style.css" rel="stylesheet" type="text/css" />
+
+<script type="text/javascript">
+
+function delete_is_final()
+{
+	var result = confirm("Are you sure you want to remove the team?");
+	if (result){
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+</script>
+
+<!-- Print Roster Script -->
+<script language="JavaScript">
+<!-- hiding
+function varitext(text){
+text=document
+print(text)
+}
+//  End -->
+</script>
+
+<style type="text/css">
+
+#dhtmltooltip{
+position: absolute;
+width: 150px;
+border: 2px solid black;
+padding: 2px;
+background-color: lightyellow;
+visibility: hidden;
+z-index: 100;
+/*Remove below line to remove shadow. Below line should always appear last within this CSS*/
+filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="wrapper">
+	<h3>Southwest Washington Soccer Association</h3> 
+	<div id="content_right">
+	
+	<?php
+	
+		if(isset($_GET['success'])){
+			if($_GET['success']==1){
+				echo '<p style="color:#FF0000;">Player information has been updated.</p>';
+			}
+			if($_GET['success']==2){
+				echo '<p style="color:#FF0000;">Team information has been updated.</p>';
+			}
+		}
+		if(isset($_GET['error'])){
+			if($_GET['error']==1){
+				echo '<p style="color:#FF0000;">You do not have access to this resource.</p>';
+			}
+		}
+				
+		if(!isset($_GET['id'])){ //The user most likely just logged in and needs to be welcomed and provided with basic information
+			if(!isset($_GET['whichTeam'])){
+				echo '<h3>SWSA Player Main Page</h3>';
+	
+				//This function will grab the information from the alert_notification text file located in a safe location on the server
+				$alert_notification = file_get_contents('alert_notification.txt');//location of the text file to retrieve content
+				echo '<p>' . $alert_notification . '</p>';//if the text file has information, post it
+				$today = date("Y-m-d");
+				$today_string = strtotime($today);
+				$card_exp_string = strtotime($_SESSION['card_exp']);
+				echo '<p>';
+				if($today_string>$card_exp_string){
+					echo '<font color="#ff0000;">Your SWSA card has expired. <a href="http://www.oly-wa.us/swsa/Forms.php" target="_blank">Click here</a> to access the form for re-registration.</font><br /><br />';
+				}
+				echo 'Sign up to be a <a href="user_main.htm?freeAgent=1">free agent</a>.</p>';
+			}
+			if(isset($_GET['freeAgent'])){
+				$player_dob = substr($_SESSION['card_id'],0,-3);
+				$player_dob = substr_replace($player_dob,'/',4,0);
+				$player_dob = substr_replace($player_dob,'/',2,0);
+				$player_dob = date('m-d-Y',strtotime($player_dob));
+				$player_dob = explode('-', $player_dob);
+				$date = date('m-d-Y');
+				$date = explode('-',$date);
+				$player_age = $date[2]-$player_dob[2];
+				if($player_dob[0]>$date[0]){
+					$player_age=$player_age-1;
+				}
+				if(($date[0]==$player_dob[0])&&($player_dob[1]>$date[1])){
+					$player_age=$player_age-1;
+				}
+				if($player_age>=40){//player is over 40 and allowed on any of the teams
+					$leagues=array();
+					$leagues[2]=$leagues[1]=$leagues[0]=1;
+				} else if($player_age>=30){//player is over 30 and allowed on any co-ed open and 30+ teams
+					$leagues=array();
+					$leagues[2]=$leagues[0]=1;
+					$leagues[1]=0;
+				} else if($player_age<30){//player is under 30 and allowed on co-ed open teams
+					$leagues=array();
+					$leagues[2]=1;
+					$leagues[1]=$leagues[0]=0;
+				}
+				$team_explode = explode(',',$_SESSION['team']);//we need to see what teams they are already on and prevent them from getting on the player pickup for that league
+				if(count($team_explode)==1){
+					unset($team_explode);
+					$team_query = "SELECT league FROM team_list WHERE id='$_SESSION[team]'";
+					$team_league_result = mysql_query($team_query,$conn);
+					$team_league = mysql_fetch_array($team_league_result, MYSQL_NUM);
+					if(!$team_league_result){ // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$leagues[$team_league[0]]=0;
+				} else if(count($team_explode)>1){
+					foreach($team_explode as &$value){
+						$team_query = "SELECT league FROM team_list WHERE id='$value'";
+						$team_league_result = mysql_query($team_query,$conn);
+						$team_league = mysql_fetch_array($team_league_result, MYSQL_NUM);
+						if(!$team_league_result){ // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$leagues[$team_league[0]]=0;
+					}
+					unset($value);
+				}
+				if(($leagues[0]==0)&&($leagues[1]==0)&&($leagues[2]==0)){
+					echo 'You are currently on as many teams as you are allowed. You can leave a team under the Update Info button.';
+				} else {
+					//form for players to add themselves to the pickup list. It will automatically display which leagues they are eligible to join
+					if(isset($_GET['fail'])){
+						if($_GET['fail']==1){
+							echo '<p><font color="#FF0000">You are already on the player pickup list for this league.</font></p>';
+						}
+					}
+					echo '<h3>Add your information to the Player Pickup List</h3>
+					<p>This will add you to the list of players looking to be picked up by teams for one season. If you want to be picked up on multiple leagues, you will need to sign up more than once. After the season, you will need to relist yourself if you were not picked up.</p>
+					<form action="user_player_pickup.php" method="post" name="player_pickup">
+						<label for="whichLeague">Select a League: </label>
+						<select name="whichLeague">
+							<option value="" selected></option>';
+							if($leagues[2]==1){
+								echo '<option value="2">Co-ed Open</option>';
+							}
+							if($leagues[0]==1){
+								echo '<option value="0">Co-ed 30+</option>';
+							}
+							if($leagues[1]==1){
+								echo '<option value="0">Co-ed 40+</option>';
+							}
+						echo '</select><br />
+						<input type="submit" name="submit" value="Submit" />
+					</form>';
+				}
+			}
+			if(isset($_GET['whichTeam'])){
+				$league_team_query = "SELECT leagues.id, leagues.league, team_list.team_name, team_list.league, team_list.id, team_list.color FROM leagues JOIN team_list ON (leagues.id = team_list.league) WHERE team_list.id = '$_GET[whichTeam]'";
+				$league_team_result = mysql_query($league_team_query,$conn);
+				if(!$league_team_result){ // add this check.
+					die('Invalid query: ' . mysql_error());
+					exit;
+				}
+				while($row = mysql_fetch_array($league_team_result)){
+					echo '<h3>Team: ' . $row['team_name'] . '</h3>
+						<p><strong>Jersey Color:</strong> ' . $row['color'] . '<br />
+						<strong>League:</strong> ' . $row['1'] . '</p>';
+					if((isset($_SESSION['update_error']))&&($_SESSION['update_error']=1)){
+						echo '<font color="#ff0000">Please enter a SWSA Card ID for the new Captain</font><br />';
+						unset($_SESSION['update_error']);
+					}
+					$captains_query = "SELECT rep_1, rep_2 FROM team_list WHERE id = '$_GET[whichTeam]'";
+					$captains_result = mysql_query($captains_query);
+					if(!$captains_result){ // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$row0 = mysql_fetch_array($captains_result);
+					if(($_SESSION['card_id']==$row0['rep_1'])||($_SESSION['card_id']==$row0['rep_2'])||($_SESSION['admin']==1)){
+						echo '<form action="user_add_team.php" name="remove_team" method="POST" onsubmit="return delete_is_final()">
+							<input type="hidden" name="whichTeam" value="' . $_GET['whichTeam'] . '" />
+							<input type="hidden" name="League" value="' . $_GET['whichLeague'] . '" />
+							<input type="hidden" name="delete" value="true" />
+							<input type="hidden" name="rep_1" value="' . $row0['rep_1'] . '" />
+							<input type="hidden" name="rep_2" value="' . $row0['rep_2'] . '" />
+							<input type="submit" name="submit" value="Delete Team" />
+						</form>
+						<form action="user_add_team.php" name="remove_team" method="POST">
+							<input type="hidden" name="whichTeam" value="' . $_GET['whichTeam'] . '" />
+							<input type="hidden" name="League" value="' . $_GET['whichLeague'] . '" />
+							<input type="hidden" name="modify" value="true" />
+							<input type="hidden" name="rep_1" value="' . $row0['rep_1'] . '" />
+							<input type="hidden" name="rep_2" value="' . $row0['rep_2'] . '" />
+							<input type="submit" name="submit" value="Modify Team" />
+						</form>';
+					}
+					$captain_array = array();
+					if($row0[rep_1]==""){
+						$rep_1 = 0;
+					} else {
+						$rep_1 = 1;
+						$captain_1_query = "SELECT lname,fname,phone,email,card_id FROM player_list WHERE card_id = '$row0[rep_1]'";
+						$captain_1_result = mysql_query($captain_1_query);
+						if(!$captain_1_result){ // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$captain_fetch = mysql_fetch_array($captain_1_result,MYSQL_ASSOC);
+						$captain_array[0][]= $captain_fetch;
+					}
+					if($row0[rep_2]==""){
+						$rep_2 = 0;
+					} else {
+						$rep_2 = 1;
+						$captain_2_query = "SELECT lname,fname,phone,email,card_id FROM player_list WHERE card_id = '$row0[rep_2]'";
+						$captain_2_result = mysql_query($captain_2_query);
+						if(!$captain_2_result){ // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$captain_fetch = mysql_fetch_array($captain_2_result,MYSQL_ASSOC);
+						$captain_array[1][]= $captain_fetch;
+					}
+					echo '<table border="1px solid black" width="90%" style="margin:0px;">
+					<tr><th colspan="3">Team Captain';
+					if(($rep_1==1)&&($rep_2==1)){
+						echo 's';
+					}
+					echo '</th></tr>
+					<tr><th>Name</th><th>Phone</th><th>Email</th></tr>';
+					$team_cpt = 0;//resetting current user as !team captain
+					if(($row0['rep_1']=="")&&($row0['rep_2']=="")){
+						echo '<form action="user_add_team.php" name="add_new_captain" method="POST">
+						<tr><td colspan="3">
+							No captains registered for this team.
+						</td></tr>
+						<tr><td>
+							Captain\'s SWSA Card ID
+						</td><td>
+							<input type="text" name="rep_1" maxlength="9" />
+						</td><td>
+							<input type="hidden" name="team" value="' . $_GET['whichTeam'] . '" />
+							<input type="submit" name="submit" value="Add a Captain" /><img src="images/questionmark.gif" alt="Image of a question mark to provide additional information" onMouseover="ddrivetip(\'Please enter your first name.\',\'white\', 200)"; 
+				onMouseout="hideddrivetip()" /> 
+						</td></tr>
+						</form>';
+					}
+					if((($rep_1==0)&&($rep_2==1))||(($rep_1==1)&&($rep_2==0))){//only one team captain present
+						$set_option=1;//setting to allow making another player a team captain via drop down menu below
+						foreach ($captain_array as &$value1){ 
+							foreach ($value1 as $value){
+								echo '<tr><td>' . $value['lname'] . ', ' . $value['fname'];
+								if(($_SESSION['card_id']==$row0['rep_1'])||($_SESSION['card_id']==$row0['rep_2'])||($_SESSION['admin']==1)){
+									$team_cpt = 1;//setting current user as team captain
+									echo '<form action="user_add_team.php" method="POST" name="remove_captain">
+									<input type="hidden" name="team" value="' . $_GET['whichTeam'] . '" />
+									<input type="hidden" name="league" value="' . $_GET['whichLeague'] . '" />';
+									if($row0['rep_1']==""){
+										echo '<input type="hidden" name="rep_2" value="' . $value['card_id'] . '" />';
+										$rep_1=1;
+									} else {
+										echo '<input type="hidden" name="rep_1" value="' . $value['card_id'] . '" />';
+										$rep_1=0;
+									}
+									echo '<input type="submit" name="submit" value="Remove Captain" />
+									</form>';
+								}
+								echo '</td><td>' . $value['phone'] . '</td><td>' . $value['email'] . '</td></tr>';
+							}
+						}
+						if($row0['rep_2']==$value['card_id']){
+							$rep = "rep_2";
+						} else {
+							$rep = "rep_1";
+						}
+					} 
+					if(($rep_1==1)&&($rep_2==1)){//two team captains present
+						$i = 1;
+						foreach ($captain_array as &$value1){ 
+							foreach ($value1 as $value){
+								echo '<tr><td>' . $value['lname'] . ', ' . $value['fname'];
+								if(($_SESSION['card_id']==$row0['rep_1'])||($_SESSION['card_id']==$row0['rep_2'])||($_SESSION['admin']==1)){
+									$team_cpt = 1;//setting current user as team captain
+									echo '<form action="user_add_team.php" method="POST" name="remove_captain">
+									<input type="hidden" name="team" value="' . $_GET['whichTeam'] . '" />
+									<input type="hidden" name="league" value="' . $_GET['whichLeague'] . '" />
+									<input type="hidden" name="rep_' . $i . '" value="' . $value['card_id'] . '" />
+									<input type="submit" name="submit" value="Remove Captain" />
+									</form>';
+								}
+								echo '</td><td>' . $value['phone'] . '</td><td>' . $value['email'] . '</td></tr>';
+								$i++;
+							}
+						}
+						if($row0['rep_2']==$value['card_id']){
+							$rep = "rep_2";
+						} else {
+							$rep = "rep_1";
+						}
+					}
+					echo '</table>';
+					echo '<table border="1px solid black" width="90%" style="margin:0px;">';
+					$player_query = "SELECT * FROM player_list WHERE team LIKE '%$_GET[whichTeam]%'";
+					$player_result = mysql_query($player_query);
+					if(!$player_result){ // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					echo '<tr><th>Name</th><th>Card ID</th><th>Card Exp.</th><th>Phone</th><th>Email</th><th>Pref. Pos.</th>';
+					if(($_SESSION['admin']==1)||($team_cpt == 1)){
+						echo '<th>Captain Options</th>';
+					}
+					echo '</tr>';
+					$already_assigned = 0;
+					$i = 0;
+					while($row0 = mysql_fetch_array($player_result)){
+						echo '<tr><td>' . $row0['lname'] . ', ' . $row0['fname'] . '</td><td>';
+						if(($_SESSION['admin']==1)||($row0['id']==$_SESSION['user_id'])||($team_cpt == 1)){
+							echo $row0['card_id'];
+						} else {
+							echo '#########';
+						}
+						echo '</td><td>';
+						$card_exp_Ymd = explode('-',date("Y-n-j", strtotime($row0['card_exp'])));
+						$date_exp_Ymd = explode('-',date("Y-n-j"));
+						//print_r($card_exp_Ymd);
+						//print_r($date_exp_Ymd);
+						if($card_exp_Ymd[0]<$date_exp_Ymd[0]){
+									echo '<font color="red">';
+									$set_color=1;
+						}
+						if($card_exp_Ymd[0]==$date_exp_Ymd[0]){
+							if($card_exp_Ymd[1]<$date_exp_Ymd[1]){
+								echo '<font color="red">';
+								$set_color=1;
+							}
+							if($card_exp_Ymd[1]==$date_exp_Ymd[1]){
+								if($card_exp_Ymd[2]<$date_exp_Ymd[2]){
+									echo '<font color="red">';
+									$set_color=1;
+								}
+							}
+						}
+						echo date("M j, Y", strtotime($row0['card_exp']));
+						if($set_color==1){
+							echo '</font>';
+							unset($set_color);
+						}
+						echo '</td><td>';
+						if(($_SESSION['admin']==1)||($row0['id']==$_SESSION['user_id'])||($team_cpt == 1)){
+							echo $row0['phone'] . '</td><td>' . $row0['email'];
+						} else {
+							echo '###-###-####</td><td>###@###.###';
+						}
+						echo '</td><td>'; 
+						if($row0['pref_pos']=='d'){
+							echo 'Defense';
+						} else if($row0['pref_pos']=='f'){
+							echo 'Forward';
+						} else if($row0['pref_pos']=='m'){
+							echo 'Midfield';
+						}  else if($row0['pref_pos']=='k'){
+							echo 'Keeper';
+						}else {
+							echo 'None';
+						} 
+						echo '</td>';
+						if(($_SESSION['admin']==1)||($team_cpt == 1)){
+							echo '<td><form action="user_cpt_add_player.php" method="GET" name="captain_options_' . $i . '">
+							<input type="hidden" name="whichLeague" value="' . $_GET['whichLeague'] . '" />
+							<input type="hidden" name="whichTeam" value="' . $_GET['whichTeam'] . '" />';
+							if(($set_option == 1)&&($rep_1 == 1)){
+								echo '<input type="hidden" name="rep" value="rep_1" />';
+							}
+							if(($set_option == 1)&&($rep_1 == 0)){
+								echo '<input type="hidden" name="rep" value="rep_2" />';
+							}
+							echo '<input type="hidden" name="rid" value="' . $row0['id'] . '" />
+							<select name="option">
+								<option value="" selected>Select One</option>
+								<option value="remove">Remove From Team</option>';
+								if($set_option == 1){
+									echo '<option value="make_captain">Make Captain</option>';
+								}
+							echo '</select>
+							<input type="submit" value="Submit" name="submit" />
+							</form>
+							</td>';
+							$i++;
+						}
+						echo '</tr>';
+						if($_SESSION['user_id']==$row0['id']){
+							$already_assigned = 1;
+						}
+					}
+				}
+				echo '</table>';
+				if ($team_cpt == 1){ //check to see if current player is team captain to allow them to add players
+					echo '<a href="user_cpt_add_player.htm?whichLeague=' . $_GET['whichLeague'] . '&whichTeam=' . $_GET['whichTeam'] . '"><img src="images/add_player.png" alt="Link to Add a Player to the Roster" border="0" /></a>
+					<a href="#" onclick="varitext()"><img src="images/print.png" alt="Link to Print Screen" border="0" /></a>';
+					//<a href="user_cpt_download_roster.php?whichLeague=' . $_GET['whichLeague'] . '&whichTeam=' . $_GET['whichTeam'] . '"><img src="images/dwnld_bttn.jpg" alt="Button to download roster" border="0" /></a><br />
+				}
+				/*Removed per Scott's request that captains have the ability to add players, no the other way around.
+				if($already_assigned==0){
+					echo '<br /><a href="user_update.php?whichTeam=' . $_GET['whichTeam'] . '">Add this team to your profile.</a>';
+				}*/ 
+			}
+		//List all users ------------------------------------------------------------------------------>
+		} else if($_GET['id']=="all"){//The user would like to see a list of all users to browse
+			echo '<h3>SWSA Player List Page</h3>';
+			if(isset($_GET['order'])){
+				$order = $_GET['order'];
+			} else {
+				$order = "id";
+			}
+			echo '<table border="1" width="90%">
+			<tr><th><a href="user_main.htm?id=all&order=lname">Name</a></th>';
+			if($_SESSION['admin']==1){
+				echo '<th>SWSA Card #</th>';
+			}
+			echo '<th><a href="user_main.htm?id=all&order=card_exp">Card Exp.</a></th><th>Team(s)</th><th>League(s)</th>';
+			if($_SESSION['admin']==1){
+				echo '<th>Phone</th><th>Email</th>';
+			}
+			echo '<th>Pref. Pos.</th></tr><tr>';
+			$query = "SELECT * FROM player_list WHERE 1 ORDER BY `$order` ASC";//generic search for user information order by id
+			$result = mysql_query($query, $conn); //sending the query to the database and capturing it in a variable
+			if(!$result){ // add this check.
+				die('Invalid query: ' . mysql_error());
+				exit;
+			}
+			while($row = mysql_fetch_array($result)){
+				$id = $row['id'];
+				$name = $row['lname'] . ', ' . $row['fname'];
+				$card_id = $row['card_id'];
+				$card_exp = $row['card_exp'];
+				$gender = $row['gender'];
+				$team = $row['team'];
+				$teams =  explode(',',$team);
+				if(count($teams)==1){
+					unset($teams);
+					$team_query = "SELECT team_name,league FROM team_list WHERE id = '$team'";
+					$team_result = mysql_query($team_query,$conn);
+					if (!$team_result) { // add this check.
+    					die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$team_name = array();
+					while ($row0 = mysql_fetch_array($team_result)){
+						$team_name[0] = $row0['team_name'];
+						$league_query = "SELECT league FROM leagues WHERE id = '$row0[league]'";
+						$league_result = mysql_query($league_query,$conn);
+						if (!$team_result) { // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$league_name = array();
+						while($row1 = mysql_fetch_array($league_result)){
+							$league_name[0] = $row1['league'];
+						}
+					}
+				} else {
+					$team = '';
+					$count = 1;
+					foreach($teams as $value){
+						if ($count < count($teams)){
+							$team .= "id = " . $value . " OR ";
+						} else if($count == count($teams)) {
+							$team .= "id = " . $value;
+						}
+						$count++;
+					} 
+					$team_query = "SELECT team_name,league FROM team_list WHERE $team";
+					$team_result = mysql_query($team_query,$conn);
+					if (!$team_result) { // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$count=0;
+					$team_name = array();
+					$league_name = array();
+					while ($row0 = mysql_fetch_array($team_result)){
+						$team_name[$count] = $row0['team_name'];
+						$league_query = "SELECT league FROM leagues WHERE id = '$row0[league]'";
+						$league_result = mysql_query($league_query,$conn);
+						if (!$league_result) { // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						while($row1 = mysql_fetch_array($league_result)){
+							$league_name[$count] = $row1['league'];
+						}
+						$count++;
+					}
+				}
+				$phone = $row['phone'];
+				$email = $row['email'];
+				if($row['pref_pos']=='d'){
+					$pref_pos = 'Defense';
+				} else if($row['pref_pos']=='f'){
+					$pref_pos = 'Forward';
+				} else if($row['pref_pos']=='m'){
+					$pref_pos = 'Midfield';
+				}  else if($row['pref_pos']=='k'){
+					$pref_pos = 'Keeper';
+				}else {
+					$pref_pos = 'None';
+				}
+				echo '<td align="center">' . $name . '</td>';
+				if($_SESSION['admin']==1){
+					echo '<td align="center">' . $card_id. '</td>';
+				}
+				echo '</td><td align="center">';
+				$card_exp_Ymd = explode('-',date("Y-n-j", strtotime($card_exp)));
+				$date_exp_Ymd = explode('-',date("Y-n-j"));
+				//print_r($card_exp_Ymd);
+				//print_r($date_exp_Ymd);
+				if($card_exp_Ymd[0]<$date_exp_Ymd[0]){
+							echo '<font color="red">';
+							$set_color=1;
+				}
+				if($card_exp_Ymd[0]==$date_exp_Ymd[0]){
+					if($card_exp_Ymd[1]<$date_exp_Ymd[1]){
+						echo '<font color="red">';
+						$set_color=1;
+					}
+					if($card_exp_Ymd[1]==$date_exp_Ymd[1]){
+						if($card_exp_Ymd[2]<$date_exp_Ymd[2]){
+							echo '<font color="red">';
+							$set_color=1;
+						}
+					}
+				}
+				echo date("M j, Y", strtotime($card_exp));
+				if($set_color==1){
+					echo '</font>';
+					unset($set_color);
+				}
+				echo'</td><td align="center">';
+				if(count($team_name) == 1){
+					echo $team_name[0];
+				} else {
+					$count = 0;
+					foreach($team_name as $value){
+						if($count < count($team_name)){
+							echo $value . '<br />';
+						} else {
+							echo $value;
+						}
+					}
+				} 
+				echo '</td><td align="center">';
+				if(isset($league_name)){
+					if(count($league_name) == 1){
+						echo $league_name[0];
+					} else {
+						$count = 0;
+						foreach($league_name as $value){
+							if($count < count($league_name)){
+								echo $value . '<br />';
+							} else {
+								echo $value;
+							}
+						}
+					} 
+					unset($league_name);
+				}
+				echo '</td>';
+				if($_SESSION['admin']==1){
+					echo '<td align="center">' . $phone . '</td><td align="center">' . $email . '</td>';
+				}
+				echo '<td align="center">' . $pref_pos . '</td></tr>';
+			}
+		echo '</table>';
+		
+		//Search for a user ------------------------------------------------------------------------------>
+		} else if($_GET['id']=="search"){//The user would like to see a list of all users to browse
+			echo '<h3>SWSA Player Search Page</h3>';
+			if(isset($_GET['error'])){//error reporting for search form
+				if($_GET['error']==1){//user did not put a first and last name or team name
+					echo '<font color="#FF0000">You must enter a First and Last Name - OR - a team name.</font><br />';
+				}
+				if($_GET['error']==2){//user did not put a first and last name or team name
+					echo '<font color="#FF0000">You must select a Team.</font><br />';
+				}
+			}
+			$query = "SELECT id,team_name FROM team_list WHERE 1";
+			$result = mysql_query($query,$conn);
+			if (!$result) { // add this check.
+				die('Invalid query: ' . mysql_error());
+				exit;
+			}
+			$team_list = array();
+			$count = 0;
+			while($row = mysql_fetch_array($result)){
+				$team_list[$count] = $row['id'] . ',' . $row['team_name'];
+				$count++;
+			}
+			echo '<table border="1">';
+			if((isset($_GET['admin']))&&($_GET['admin']=="make")){
+				echo '<form action="user_main.htm" method="GET">
+				<tr><th colspan="2">
+						Fill in all or some of the search fields to locate a player.
+					</th></tr>
+					<tr><td align="right">
+						<label for="fname">First Name</label>
+						<input type="text" name="fname" title="First Name" size="20" maxlength="20" />
+					</td><td align="right">
+						<label for="lname">Last Name</label>
+						<input type="text" name="lname" title="Last Name" size="20" maxlength="20" />
+					</td></tr>
+					<tr><td colspan="2" align="center">
+						<input type="hidden" name="admin" value="make" />
+						<input type="hidden" name="id" value="search_now" />
+						<input type="submit" name="submit" value="Search by Name" />
+					</td></tr>
+				</form>
+			</table>';
+			} else {
+				echo '<form action="user_main.htm" method="GET">
+				<tr><th colspan="2">
+						Fill in First -AND- Last Name or select a team below.
+					</th></tr>
+					<tr><td align="right">
+						<label for="fname">First Name</label>
+						<input type="text" name="fname" title="First Name" size="20" maxlength="20" />
+					</td><td align="right">
+						<label for="lname">Last Name</label>
+						<input type="text" name="lname" title="Last Name" size="20" maxlength="20" />
+					</td></tr>
+					<tr><td colspan="2" align="center">
+						<input type="hidden" name="id" value="search_now" />
+						<input type="submit" name="submit" value="Search by Name" />
+					</td></tr>
+				</form>
+					<tr><td colspan="2" style="text-align:center;">
+					OR
+					</td></tr>
+				<form action="user_main.htm" method="POST">
+					<tr><td colspan="2" style="text-align:center;">
+						<label for="team">Team Name</label>
+						<select name="team" id="team">
+							<option value="" selected="selected"></option>';
+							foreach($team_list as $value){
+								$values = explode(',',$value);
+								echo '<option value="' . $values[0] . '">' . $values[1] . '</option>';
+							}
+						echo '</select>
+						<input type="submit" name="submit" value="Search by Team" />
+					</td></tr>
+				</form>
+			</table>';
+			}
+		} else if($_GET['id']=="search_now"){
+			$get = "";
+			if(($_GET['fname']!="")&&($_GET['lname']!="")){//check to see if variable is empty
+				$display_by = "name";
+				echo '<h3>Search by Name: ' . $_GET['lname'] . ', ' . $_GET['fname'] . '</h3>';
+				$fname = $_GET['fname'];
+				$lname = $_GET['lname'];
+				$query = "SELECT * FROM player_list WHERE fname = '$fname' AND lname = '$lname'";
+				$get = "&fname=" . $fname . "&lname=" . $lname;
+			} else if($_GET['team']!=""){//check to see if variable is empty	
+				$display_by = "team";
+				echo '<h3>Search by Team: ' . $_GET['team'] . '</h3>';			
+				$team = $_GET['team'];
+				$query = "SELECT id,team_name,league FROM team_list WHERE team_name = '$team'";		
+			} 
+			if(isset($_GET['order'])){
+				$order = $_GET['order'];
+			} else {
+				$order = "id";
+			}
+			$query = $query . " ORDER BY $order ASC";
+			if($display_by == "name"){
+				$result = mysql_query($query, $conn); //sending the query to the database and capturing it in a variable
+				if (!$result) { // add this check.
+					die('Invalid query: ' . mysql_error());
+					exit;
+				}
+				echo '<table border="1" width="90%">
+				<tr><th><a href="user_main.htm?id=search_now&order=lname' . $get . '">Name</a></th><th>SWSA Card ID</th><th>Card Exp.</th><th>Team(s)</th><th>League(s)</th><th>Phone</th><th>Email</th><th>Pref. Pos.</th>';
+				if((isset($_GET['admin']))&&($_GET['admin']=="make")){
+					echo '<th>Make admin?</th>';
+				}
+				echo '</tr><tr>';
+				while($row = mysql_fetch_array($result)){
+					$id = $row['id'];
+					$name = $row['lname'] . ', ' . $row['fname'];
+					$card_id = $row['card_id'];
+					$card_exp = $row['card_exp'];
+					$email = $row['phone'];
+					$phone = $row['email'];
+					$team = $row['team'];
+					$admin = $row['admin'];
+					$teams =  explode(',',$team);
+					if($row['pref_pos']=='d'){
+						$pref_pos = 'Defense';
+					} else if($row['pref_pos']=='f'){
+						$pref_pos = 'Forward';
+					} else if($row['pref_pos']=='m'){
+						$pref_pos = 'Midfield';
+					}  else if($row['pref_pos']=='k'){
+						$pref_pos = 'Keeper';
+					}else {
+						$pref_pos = 'None';
+					}
+					if(count($teams)==1){
+						unset($teams);
+						$team_query = "SELECT team_name,league FROM team_list WHERE id = '$team'";
+						$team_result = mysql_query($team_query,$conn);
+						if (!$team_result) { // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$team_name = array();
+						while ($row0 = mysql_fetch_array($team_result)){
+							$team_name[0] = $row0['team_name'];
+							$league_query = "SELECT league FROM leagues WHERE id = '$row0[league]'";
+							$league_result = mysql_query($league_query,$conn);
+							if (!$team_result) { // add this check.
+								die('Invalid query: ' . mysql_error());
+								exit;
+							}
+							$league_name = array();
+							while($row1 = mysql_fetch_array($league_result)){
+								$league_name[0] = $row1['league'];
+							}
+						}
+					} else {
+						$team = '';
+						$count = 1;
+						foreach($teams as $value){
+							if ($count < count($teams)){
+								$team .= "id = " . $value . " OR ";
+							} else if($count == count($teams)) {
+								$team .= "id = " . $value;
+							}
+							$count++;
+						} 
+						$team_query = "SELECT team_name,league FROM team_list WHERE $team";
+						$team_result = mysql_query($team_query,$conn);
+						if (!$team_result) { // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$count=0;
+						$team_name = array();
+						$league_name = array();
+						while ($row0 = mysql_fetch_array($team_result)){
+							$team_name[$count] = $row0['team_name'];
+							$league_query = "SELECT league FROM leagues WHERE id = '$row0[league]'";
+							$league_result = mysql_query($league_query,$conn);
+							if (!$league_result) { // add this check.
+								die('Invalid query: ' . mysql_error());
+								exit;
+							}
+							while($row1 = mysql_fetch_array($league_result)){
+								$league_name[$count] = $row1['league'];
+							}
+							$count++;
+						}
+					}
+					echo '<td align="center">' . $name . '</td><td align="center">';
+					if(($_SESSION['admin']==1)||($row['id']==$_SESSION['user_id'])){
+						echo $card_id;
+					} else {
+						echo '#########';
+					}
+					echo '</td><td align="center">';
+					$card_exp_Ymd = explode('-',date("Y-n-j", strtotime($card_exp)));
+					$date_exp_Ymd = explode('-',date("Y-n-j"));
+					//print_r($card_exp_Ymd);
+					//print_r($date_exp_Ymd);
+					if($card_exp_Ymd[0]<$date_exp_Ymd[0]){
+								echo '<font color="red">';
+								$set_color=1;
+					}
+					if($card_exp_Ymd[0]==$date_exp_Ymd[0]){
+						if($card_exp_Ymd[1]<$date_exp_Ymd[1]){
+							echo '<font color="red">';
+							$set_color=1;
+						}
+						if($card_exp_Ymd[1]==$date_exp_Ymd[1]){
+							if($card_exp_Ymd[2]<$date_exp_Ymd[2]){
+								echo '<font color="red">';
+								$set_color=1;
+							}
+						}
+					}
+					echo date("M j, Y", strtotime($card_exp));
+					if(set_color==1){
+						echo '</font>';
+						unset($set_color);
+					}
+					echo '</td><td align="center">';
+					if(count($team_name) == 1){
+						echo $team_name[0];
+					} else {
+						$count = 0;
+						foreach($team_name as $value){
+							if($count < count($team_name)){
+								echo $value . '<br />';
+							} else {
+								echo $value;
+							}
+						}
+					} 
+					echo '</td><td align="center">';
+					if(isset($league_name)){
+						if(count($league_name) == 1){
+							echo $league_name[0];
+						} else {
+							$count = 0;
+							foreach($league_name as $value){
+								if($count < count($league_name)){
+									echo $value . '<br />';
+								} else {
+									echo $value;
+								}
+							}
+						} 
+					}
+				echo '</td><td align="center">';
+				if(($_SESSION['admin']==1)||($row['id']==$_SESSION['user_id'])){
+					echo $phone;
+				} else {
+					echo '###-###-####';
+				}
+				echo '</td><td align="center">';
+				if(($_SESSION['admin']==1)||($row['id']==$_SESSION['user_id'])){
+					echo $email;
+				} else {
+					echo '###@###.####';
+				}
+				echo '</td><td align="center">' .  $pref_pos . '</td>';
+				if((isset($_GET['admin']))&&($_GET['admin']=="make")){
+					echo '<td><form action="admin_update.php" name="update_user" method="POST">
+						<input type="hidden" name="id" value="' . $id . '" />';
+					if($admin==1){
+						echo '<input type="hidden" name="admin" value="remove" />
+						<input type="submit" value="Remove Admin" />';
+					} else {
+						echo '<input type="hidden" name="admin" value="make" />
+						<input type="submit" value="Make Admin" />';					
+					}
+					echo '</form></td>';
+				}
+				echo '</tr>';
+			echo '</table>';
+			}
+			} else if($display_by == "team"){//close display_by = name
+				$result = mysql_query($query,$conn);
+				if (!$result) { // add this check.
+					die('Invalid query: ' . mysql_error());
+					exit;
+				}
+				while($row = mysql_fetch_array($result)){
+					$team_id = $row['id'];
+					$team_name = $row['team_name'];
+					$league = $row['league'];
+					$player_query = "SELECT * FROM player_list WHERE team LIKE '%$team_id%'";
+					$player_result = mysql_query($player_query,$conn);
+					if (!$player_result) { // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$player_numrows = mysql_num_rows($player_result);
+					if($player_numrows>0){
+						$count = 0;
+						while($row0 = mysql_fetch_array($player_result)){
+							$id[$count] = $row0['id'];
+							$name[$count] = $row0['lname'] . ', ' . $row0['fname'];
+							$card_id[$count] = $row0['card_id'];
+							$card_exp[$count] = $row0['card_exp'];
+							$phone[$count] = $row0['phone'];
+							$email[$count] = $row0['email'];
+							if($row0['pref_pos']=='d'){
+								$pref_pos[$count] = 'Defense';
+							} else if($row0['pref_pos']=='f'){
+								$pref_pos[$count] = 'Forward';
+							} else if($row0['pref_pos']=='m'){
+								$pref_pos[$count] = 'Midfield';
+							}  else if($row0['pref_pos']=='k'){
+								$pref_pos[$count] = 'Keeper';
+							}else {
+								$pref_pos[$count] = 'None';
+							}
+							$count++;
+						}
+					}
+				}
+				if($player_numrows>0){
+					$league_query = "SELECT league FROM leagues WHERE id = '$league'";
+					$league_result = mysql_query($league_query,$conn);
+					if(!$league_result){ // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					while($row1 = mysql_fetch_array($league_result)){
+						$league_name = $row1['league'];
+					}
+					echo '<table border="1" width="90%">	
+					<tr><th>Name</th><th>Card ID</th><th>Card Exp.</th><th>Team</th><th>League</th><th>Phone</th><th>Email</th><th>Pref. Pos.</th></tr>';
+					for($count = 0;$count<$player_numrows;$count++){
+						echo '<tr><td>' . $name[$count] . '</td>';
+						if(($_SESSION['admin']==1)||($id[$count]==$_SESSION['user_id'])){
+							echo '<td>' . $card_id[$count] . '</td>';
+						} else {
+							echo '<td>#########</td>';
+						}
+						echo '<td>' . $card_exp[$count] . '</td><td>' . $team . '</td><td>' . $league_name . '</td>';
+						if(($_SESSION['admin']==1)||($id[$count]==$_SESSION['user_id'])){
+							echo '<td>' . $phone[$count] . '</td><td>' . $email[$count] . '</td>';
+						} else {
+							echo '<td>###-###-####</td><td>###@###.###</td>';
+						}
+						echo '</td><td align="center">' .  $pref_pos . '</td></tr>';
+					}
+					echo '</table>';
+					} else {
+						echo 'No players currently on team ' . $_GET['team']. '.';
+					}
+				} 	
+		}
+		if(isset($_GET['id'])){
+			if(((is_numeric($_GET['id']))&&($_GET['id']==$_SESSION['user_id']))||((is_numeric($_GET['id']))&&($_SESSION['admin']==1))){
+				echo '<h3>SWSA Player - Info Page</h3>';
+				$query = "SELECT * FROM player_list WHERE id = '$_GET[id]'";
+				$result = mysql_query($query,$conn);
+				if(!$result){ // add this check.
+					die('Invalid query: ' . mysql_error());
+					exit;
+				}
+				while($row0 = mysql_fetch_array($result)){
+					$id = $row0['id'];
+					$name = $row0['lname'] . ', ' . $row0['fname'];
+					$card_id = $row0['card_id'];
+					$card_exp = $row0['card_exp'];
+					$phone = $row0['phone'];
+					$email = $row0['email'];
+					$team = $row0['team'];
+					$teams =  explode(',',$team);
+					if($row0['pref_pos']=='d'){
+						$pref_pos = 'Defense';
+					} else if($row0['pref_pos']=='f'){
+						$pref_pos = 'Forward';
+					} else if($row0['pref_pos']=='m'){
+						$pref_pos = 'Midfield';
+					}  else if($row0['pref_pos']=='k'){
+						$pref_pos = 'Keeper';
+					}else {
+						$pref_pos = 'None';
+					}
+					if(count($teams)==1){
+						unset($teams);
+						$team_query = "SELECT team_name,league FROM team_list WHERE id = '$team'";
+						$team_result = mysql_query($team_query,$conn);
+						if (!$team_result) { // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$team_name = array();
+						while ($row0 = mysql_fetch_array($team_result)){
+							$team_name[0] = $row0['team_name'];
+							$league_query = "SELECT league FROM leagues WHERE id = '$row0[league]'";
+							$league_result = mysql_query($league_query,$conn);
+							if (!$team_result) { // add this check.
+								die('Invalid query: ' . mysql_error());
+								exit;
+							}
+							$league_name = array();
+							while($row1 = mysql_fetch_array($league_result)){
+								$league_name[0] = $row1['league'];
+							}
+						}
+					} else {
+						$team_q = '';
+						$count = 1;
+						echo count($teams);
+						foreach($teams as $value){
+							if ($count < count($teams)){
+								$team_q .= "id = " . $value . " OR ";
+							} else if($count == count($teams)) {
+								$team_q .= "id = " . $value;
+							}
+							$count++;
+						} 
+						$team_query = "SELECT team_name,league FROM team_list WHERE $team_q";
+						echo $team_query;
+						$team_result = mysql_query($team_query,$conn);
+						if (!$team_result) { // add this check.
+							die('Invalid query: ' . mysql_error());
+							exit;
+						}
+						$count=0;
+						$team_name = array();
+						$league_name = array();
+						while ($row0 = mysql_fetch_array($team_result)){
+							$team_name[$count] = $row0['team_name'];
+							$league_query = "SELECT league FROM leagues WHERE id = '$row0[league]'";
+							$league_result = mysql_query($league_query,$conn);
+							if (!$league_result) { // add this check.
+								die('Invalid query: ' . mysql_error());
+								exit;
+							}
+							while($row1 = mysql_fetch_array($league_result)){
+								$league_name[$count] = $row1['league'];
+							}
+							$count++;
+						}
+				}
+				if(isset($_GET['update'])){
+					if($_GET['update']==0){
+						{
+							echo '<table border="1" width="90%">	
+							<tr><th>Name</th><th>Card ID</th><th>Card Exp.</th><th>Team</th><th>League</th><th>Phone</th><th>Email</th><th>Pref. Pos.</th></tr>
+							<tr><td>' . $name . '</td><td>' . $card_id . '</td><td>' . $card_exp . '</td><td>';
+							if(count($team_name) == 1){
+								echo $team_name[0];
+							} else {
+								$count = 0;
+								foreach($team_name as $value){
+									if($count < count($team_name)){
+										echo $value . '<br />';
+									} else {
+										echo $value;
+									}
+								}
+							} 
+							echo '</td><td align="center">';
+							if(isset($league_name)){
+								if(count($league_name) == 1){
+									echo $league_name[0];
+								} else {
+									$count = 0;
+									foreach($league_name as $value){
+										if($count < count($league_name)){
+											echo $value . '<br />';
+										} else {
+											echo $value;
+										}
+									}
+								} 
+							}
+							echo '</td><td>' . $phone . '</td><td>' . $email . '</td><td>' . $pref_pos. '</td></tr>';
+							echo '</table>';
+						}
+					} else { //close if $_get update = 0 The player wants to update their information
+						if(isset($_GET['addteam'])){
+							if($_GET['addteam']=="add"){
+								echo '<p>Contact your team captain to add you to the team.</p>';
+							} else {//$_get addteam == remove
+								$player_query = "SELECT team FROM player_list WHERE id = '$_GET[id]'";
+								$player_result = mysql_query($player_query,$conn);
+								if (!$team_result) { // add this check.
+									die('Invalid query: ' . mysql_error());
+									exit;
+								}
+								echo '<p>Select a team to remove:</p>
+								<form name="update_teams" id="update_teams" action="user_update.php" method="post">
+									<select name="team_remove" id="team">
+										<option value="" selected="selected">Select One</option>';
+										while($row = mysql_fetch_array($player_result)){
+											$teams = explode(',',$team);
+											$team_q = '';
+											$count = 1;
+											foreach($teams as $value){
+												if ($count < count($teams)){
+													$team_q .= "id = " . $value . " OR ";
+												} else if($count == count($teams)) {
+													$team_q .= "id = " . $value;
+												}
+												$count++;
+											}
+											$team_query = "SELECT id,team_name FROM team_list WHERE $team_q";
+											$team_result = mysql_query($team_query,$conn);
+											if (!$team_result) { // add this check.
+												die('Invalid query: ' . mysql_error());
+												exit;
+											}
+											while($row0 = mysql_fetch_array($team_result)){
+												echo '<option value="' . $row0['id'] . '">' . $row0['team_name'] . '</option>';
+											}
+										}
+									echo '</select><br />
+									<input type="hidden" name="id" value="' . $_GET['id'] . '" />
+									<input type="hidden" name="teams" value="' . $team . '" />
+									<input type="submit" name="submit" value="Submit" />
+								</form>';
+							}
+						} else { //addteam is not set, so the player wants to view and modify their information other than team
+							echo '<table border="1" width="90%">
+								<tr><th>Name</th><th>Card ID</th><th>Card Exp.</th><th>Team(s)</th><th>League(s)</th></tr>
+								<form id="update_player" name="update_player" action="user_update.php" method="post">
+									<tr><td>' . $name . '</td><td>' . $card_id . '</td><td><input type="date" name="card_exp" value="' . $card_exp . '" /></td><td>';
+							if(count($team_name) == 1){
+								echo $team_name[0];
+							} else {
+								$count = 0;
+								foreach($team_name as $value){
+									if($count < count($team_name)){
+										echo $value . '<br />';
+									} else {
+										echo $value;
+									}
+								}
+							}
+							echo '<br /><a href="user_main.htm?id=' . $_GET['id'] . '&update=1&addteam=add">Add Team</a><br /><a href="user_main.htm?id=' . $_GET['id'] . '&update=1&addteam=remove">Remove Team</a>';
+								echo '</td><td valign="top">';
+								if(isset($league_name)){
+									if(count($league_name) == 1){
+										echo $league_name[0];
+									} else {
+										$count = 0;
+										foreach($league_name as $value){
+											if($count < count($league_name)){
+												echo $value . '<br />';
+											} else {
+												echo $value;
+											}
+										}
+									}
+								} 
+								$phone_exp = explode('-',$phone);
+								echo '</tr>
+								<tr><th colspan="2">Phone</th><th colspan="2">Email</th><th>Pref. Pos.</th></tr>
+								<tr><td colspan="2"><input type="text" name="phone01" value="' . $phone_exp[0] . '" maxlength="3" size="1" />-<input type="text" name="phone02" value="' . $phone_exp[1] . '" maxlength="3" size="1" />-<input type="text" name="phone03" value="' . $phone_exp[2] . '" maxlength="4" size="3" /></td><td colspan="2"><input type="text" name="email" value="' . $email . '"/></td><td>
+									<select name="pref_pos">
+										<option value="n"';
+										if($pref_pos == "None"){
+											echo ' selected';
+										}
+										echo '>None</option>
+										<option value="k"';
+										if($pref_pos == "Keeper"){
+											echo ' selected';
+										}
+										echo '>Keeper</option>
+										<option value="d"';
+										if($pref_pos == "Defense"){
+											echo ' selected';
+										}
+										echo '>Defense</option>
+										<option value="m"';
+										if($pref_pos == "Midfield"){
+											echo ' selected';
+										}
+										echo '>Midfield</option>
+										<option value="f"';
+										if($pref_pos == "Forward"){
+											echo ' selected';
+										}
+										echo '>Forward</option>
+										' . $pref_pos . '</select></td></tr>
+								<tr><td colspan="7" style="text-align:right;">
+								<input type="hidden" name="id" value="' . $_GET['id'] . '" /><input type="submit" name="submit" value="submit" /></td>
+								</form>
+							</table>';
+						}//close if $_get update = 1
+					}//close if addteam !isset
+				}//close if $_get update isset
+			}
+		} else if(($_GET['id']!="search_now")&&($_GET['id']!="all")&&($_GET['id']!="search")){//close if $get id = number, session user_id or admin = 1
+				echo '<p>You do not have permission to view this user\'s information</p>';
+		} //close $get id != number session or admin !=1
+	}//close if $_GET id isset
+	?>		
+	</div><!-- closes content_right div-->
+<?php pageend('2014/04/23 13:57:14'); ?>
+</div><!-- closes wrapper div -->
+<script type="text/javascript">
+	
+	/***********************************************
+	* Cool DHTML tooltip script- © Dynamic Drive DHTML code library (www.dynamicdrive.com)
+	* This notice MUST stay intact for legal use
+	* Visit Dynamic Drive at http://www.dynamicdrive.com/ for full source code
+	***********************************************/
+	
+	var offsetxpoint=-60 //Customize x offset of tooltip
+	var offsetypoint=20 //Customize y offset of tooltip
+	var ie=document.all
+	var ns6=document.getElementById && !document.all
+	var enabletip=false
+	if (ie||ns6)
+	var tipobj=document.all? document.all["dhtmltooltip"] : document.getElementById? document.getElementById("dhtmltooltip") : ""
+	
+	function ietruebody(){
+	return (document.compatMode && document.compatMode!="BackCompat")? document.documentElement : document.body
+	}
+	
+	function ddrivetip(thetext, thecolor, thewidth){
+	if (ns6||ie){
+	if (typeof thewidth!="undefined") tipobj.style.width=thewidth+"px"
+	if (typeof thecolor!="undefined" && thecolor!="") tipobj.style.backgroundColor=thecolor
+	tipobj.innerHTML=thetext
+	enabletip=true
+	return false
+	}
+	}
+	
+	function positiontip(e){
+	if (enabletip){
+	var curX=(ns6)?e.pageX : event.clientX+ietruebody().scrollLeft;
+	var curY=(ns6)?e.pageY : event.clientY+ietruebody().scrollTop;
+	//Find out how close the mouse is to the corner of the window
+	var rightedge=ie&&!window.opera? ietruebody().clientWidth-event.clientX-offsetxpoint : window.innerWidth-e.clientX-offsetxpoint-20
+	var bottomedge=ie&&!window.opera? ietruebody().clientHeight-event.clientY-offsetypoint : window.innerHeight-e.clientY-offsetypoint-20
+	
+	var leftedge=(offsetxpoint<0)? offsetxpoint*(-1) : -1000
+	
+	//if the horizontal distance isn't enough to accomodate the width of the context menu
+	if (rightedge<tipobj.offsetWidth)
+	//move the horizontal position of the menu to the left by it's width
+	tipobj.style.left=ie? ietruebody().scrollLeft+event.clientX-tipobj.offsetWidth+"px" : window.pageXOffset+e.clientX-tipobj.offsetWidth+"px"
+	else if (curX<leftedge)
+	tipobj.style.left="5px"
+	else
+	//position the horizontal position of the menu where the mouse is positioned
+	tipobj.style.left=curX+offsetxpoint+"px"
+	
+	//same concept with the vertical position
+	if (bottomedge<tipobj.offsetHeight)
+	tipobj.style.top=ie? ietruebody().scrollTop+event.clientY-tipobj.offsetHeight-offsetypoint+"px" : window.pageYOffset+e.clientY-tipobj.offsetHeight-offsetypoint+"px"
+	else
+	tipobj.style.top=curY+offsetypoint+"px"
+	tipobj.style.visibility="visible"
+	}
+	}
+	
+	function hideddrivetip(){
+	if (ns6||ie){
+	enabletip=false
+	tipobj.style.visibility="hidden"
+	tipobj.style.left="-1000px"
+	tipobj.style.backgroundColor=''
+	tipobj.style.width=''
+	}
+	}
+	
+	document.onmousemove=positiontip
+	
+	</script>
+</body>
+</html>
+
+<?php
+
+//close the database connection
+mysql_close($conn);
+
+?>

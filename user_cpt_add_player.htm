@@ -1,0 +1,191 @@
+<?php session_start(); //start the session 
+
+/* Created by Kerry Mraz for the user of SWSA
+Created 2/11/14
+Modified 4/24/2014
+
+Page Information:
+This page will allow team captains to select new registered players for their teams
+*/
+
+//include server url string
+include 'server_url.php';
+
+//include database connect file
+include 'db_connection_scottb.php';
+
+//check to see if the user is logged in, else redirect them to the login page if not
+if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
+	$_SESSION['login_fail']=5;
+	header("Location: http://$server_url/user_login.php?page=user_cpt_add_plrhtm");
+	exit;
+}
+
+$whichTeam = $_GET['whichTeam'];
+$whichLeague = $_GET['whichLeague'];
+if($whichLeague == 0){//check to see if person is over 30
+	$age = 30;
+} else if($whichLeague == 1){//check to see if person is over 40
+	$age = 40;
+} else if($whichLeague == 2){//coed open, no age limit
+	$age = 0;
+}
+
+date_default_timezone_set('America/Los_Angeles');
+
+include('LookAndFeel.php');
+pagebegin('SWSA: Captain Add Player to Team');
+?>
+	<link href="css/style.css" rel="stylesheet" type="text/css" />
+	</head>
+
+	<body>
+	
+	<div id="wrapper">
+		<h3>Southwest Washington Soccer Association</h3> 
+		<div id="menu_left">
+			<p>Hello <?php echo $_SESSION['fname']; ?></p>
+			
+			<?php include 'user_left_menu.php'; ?>
+			
+		</div><!-- closes menu_left div -->
+		<div id="content_right">
+			<h2>SWSA Captain's Add Player Search</h2>
+			
+			<?php  
+				if(isset($_GET['fail'])){
+					if($_GET['fail']==1){
+						echo '<p style="color:red">The player is already on the team.</p>';
+					}
+					if($_GET['fail']==2){
+						echo '<p style="color:red">The player is already on a team in this league.</p>';
+					}
+					if($_GET['fail']==3){
+						echo '<p style="color:red">The player does not meet the age requirements for this league.</p>';
+					}
+				}
+			?>
+			
+			<p>This search is provided for captains wanting to add registered players to their teams. The list below are people of the right age for the league your team is entered that are not already on another team in the league. It is recommended that you contact the player before adding them to a team. You may also enter by ID if the player is already registered with the site.</p>
+			<p>
+				<strong>Team: </strong> 
+				<?php 
+					$team_query = "SELECT team_name FROM team_list WHERE id='$whichTeam'";
+					$team_result = mysql_query($team_query,$conn);
+					if(!$team_result){ // add this check.
+						die('Invalid query: ' . mysql_error());
+						exit;
+					}
+					$row = mysql_fetch_array($team_result, MYSQL_ASSOC);
+					echo $row['team_name'] . '</br></ br>';
+				?>
+			</p>
+			<h3>Add player by SWSA ID</h3>
+			<p>The player must be registered with this SWSA site. If they are not, they will need to make a new account. Enter the SWSA ID below to see if they are registered and to add them to this team.</p>
+			<form action="user_cpt_add_player.php" method="GET">
+				<label for="id">SWSA Player ID</label>
+				<input type="hidden" name="whichLeague" value="<?php echo $whichLeague ?>" />
+				<input type="hidden" name="whichTeam" value="<?php echo $whichTeam ?>" />
+				<input type="text" name="card_id" maxlength="9" />
+				<input type="submit" value="Submit" name="submit" />
+			</form>
+			<?php 
+				$team_query = "SELECT id FROM team_list WHERE league = '$whichLeague'";//grab the teams that are on the league for comparison of player's teams
+				$team_result = mysql_query($team_query, $conn);
+				if(!$team_result){ // add this check.
+					die('Invalid query: ' . mysql_error());
+					exit;
+				} 
+				$i = 0;
+				while($team_row = mysql_fetch_array($team_result, MYSQL_NUM)){
+					$team_array[$i] = $team_row[0];//put the team results in an array, these are the teams we don't want to list players from
+					$i++;
+				}
+				//print_r($team_array);
+				//echo '<br />';
+				$player_query = "SELECT id,team,card_id FROM player_list";//now we query for the players
+				$player_result = mysql_query($player_query, $conn);
+				if(!$player_result){ // add this check.
+					die('Invalid query: ' . mysql_error());
+					exit;
+				} 
+				$i = 0;
+				while($player_row = mysql_fetch_array($player_result, MYSQL_NUM)){
+					$team_match = 0;
+					$teams = explode(',',$player_row[1]);
+					foreach($teams as &$value){//we will go through each team that the player is on to compare to the array of teams in the league. A match will change the $team_match value and prevent the player from being added to the player_list
+						foreach($team_array as &$value2){
+							if($value==$value2){
+								$team_match = 1;
+							}
+						}
+					}
+					unset($value);//clearing the values to restart match process
+					unset($value2);
+					if($team_match == 0){
+						$player_dob = substr($player_row[2],0,-3);
+						$player_dob = substr_replace($player_dob,'/',4,0);
+						$player_dob = substr_replace($player_dob,'/',2,0);
+						$player_dob = date('m-d-Y',strtotime($player_dob));
+						$player_dob = explode('-', $player_dob);
+						$date = date('m-d-Y');
+						$date = explode('-',$date);
+						$player_age = $date[2]-$player_dob[2];
+						if($player_dob[0]>$date[0]){
+							$player_age=$player_age-1;
+						}
+						if(($date[0]==$player_dob[0])&&($player_dob[1]>$date[1])){
+							$player_age=$player_age-1;
+						}
+						//echo $player_age . '</br>';
+						if(($age==0)||($age<$player_age)){
+							$player_list[$i]=$player_row[0];
+						}
+						$i++;
+					}
+				}
+				//print_r($player_list);//player list is the filtered list of players that are not on a team in the league. Now we need to filter them for the age of the league and provide the list to the captains for adding them to the team.
+				//Create a table that will provide captains with the player information and allow them to add the player to their teams. Also need to add a search field by player id if they wish to enter a player that way. Finally, the player needs to receive an email notification when they have been added to a team.
+				
+				$ids = join(',',$player_list);
+				$player_query = "SELECT id,fname,lname,phone,email,pref_pos FROM player_list WHERE id IN ($ids)";
+				//echo $player_query;
+				$player_results = mysql_query($player_query,$conn);
+				if(!$player_results){ // add this check.
+					die('Invalid query: ' . mysql_error());
+					exit;
+				}
+			?>
+			<h3>Available Players</h3>
+			<table border="1">
+				<tr><th>Name</th><th>Phone</th><th>Email</th><th>Preferred Position</th><th>Add to team?</th></tr>
+				<?php 
+					while($player_row = mysql_fetch_array($player_results, MYSQL_ASSOC)){
+						echo "<tr><td>" . $player_row['lname'] . ", " . $player_row['fname'] . "</td><td>" . $player_row['phone'] . "</td><td>" . $player_row['email']. "</td><td>";
+						if($player_row['pref_pos']=="m"){
+							echo 'Midfield';
+						} else if($player_row['pref_pos']=="k"){
+							echo 'Keeper';
+						} else if($player_row['pref_pos']=="d"){
+							echo 'Defense';
+						} else if($player_row['pref_pos']=="f"){
+							echo 'Forward';
+						} else {
+							echo 'None';
+						}
+						echo '</td><td><a href="user_cpt_add_player.php?whichLeague=' . $whichLeague . '&whichTeam=' . $whichTeam . '&id=' . $player_row[id] . '&email=' . $player_row[email] . '">Add player</a></td></tr>';
+					}
+				?>
+				</tr>
+			</table>
+			</p>
+		</div><!-- closes content_right div-->
+	<?php pageend('2014/04/24 14:35:14'); ?>
+	</div><!-- closes wrapper div -->
+	</body>
+</html>
+
+<?php
+//close the database connection
+mysql_close($conn);
+?>

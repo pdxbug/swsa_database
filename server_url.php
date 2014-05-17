@@ -1,0 +1,1 @@
+<?php $server_url = $_SERVER['SERVER_NAME'] . '/scott'; ?>

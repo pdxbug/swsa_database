@@ -1,0 +1,90 @@
+<?php  session_start(); //start the session 
+
+/* Created by Kerry Mraz for SWSA
+Created 6/19/2013
+
+Contact kerry@fossil-bug.com
+
+Page Information:
+Page created for SWSA to allow players/admins to update the teams. 
+*/
+
+//include server url string
+include	'server_url.php';
+
+//check to see if the user is logged in, else redirect them to the login page if not
+if ((empty($_SESSION['user_id']))||($_SESSION['login_fail']!=0)){
+	$_SESSION['login_fail']=5;
+	header("Location: http://$server_url/user_login.php?page=admin_updatehtm");
+	//print_r($_SESSION);
+	exit;
+}	
+
+//include database connect file
+include 'db_connection_scottb.php';
+
+include('LookAndFeel.php');
+pagebegin('SWSA: Team Creation Page');
+?>
+<link href="css/style.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+<div id="wrapper">
+	<h3>Southwest Washington Soccer Association</h3> 
+	<div id="menu_left">
+		<p>Hello <?php echo $_SESSION['fname']; ?></p>
+		
+		<?php include 'user_left_menu.php'; ?>
+		
+	</div><!-- closes menu_left div -->
+	<div id="content_right">
+		<?php
+			if(isset($_GET['whichLeague'])){
+				$query = "SELECT league FROM leagues WHERE id = '$_GET[whichLeague]'";
+				$result = mysql_query($query,$conn);
+				if(!$result){
+					die(mysql_error());
+				}
+				$row = mysql_fetch_array($result);
+				if((isset($_SESSION['update_error']))&&($_SESSION['update_error']=1)){
+					echo '<font color="#ff0000">This team name already exists.</font><br />';
+					unset($_SESSION['update_error']);
+				};
+				echo '<form action="user_add_team.php" name="addteam" method="POST">
+					<table border="1">
+						<tr><th colspan="2">
+							Add a New Team to ' . $row['league'] . '
+						</th></tr>
+						<tr><td>
+							<label for="name">Team Name:</label>
+						</td><td>
+							<input type="text" name="name" />
+						</td></tr>
+						<tr><td>
+							<label for="color">Team Color:</label>
+						</td><td>
+							<input type="text" name="color" />
+						</td></tr>
+						<tr><td>
+							<label for="rep_1">Team Captain #1 Card ID:</label>
+						</td><td>
+							<input type="text" name="rep_1" />
+						</td></tr>
+						<tr><td colspan="2">
+							<input type="hidden" name="whichLeague" value="' . $_GET['whichLeague'] . '" />
+							<input type="submit" name="submit" value="Submit" />
+						</td></tr>
+					</table>
+				</form>';
+			}
+		?>
+	</div>
+	<?php pageend('2014/04/24 14:35:14'); ?>
+</div><!--closes wrapper -->
+</body>
+</html>
+<?php
+//close the database connection
+				mysql_close($conn);
+?>
