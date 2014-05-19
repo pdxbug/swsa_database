@@ -45,7 +45,6 @@ echo <<<top
       <td width="150" bgcolor="$aINI[navcolor]" valign="top">
         <table width="100%" cellpadding="4">
 		  <tr><td >
-          <!--$sNavList-->
 top;
 
 		  if($sTitle!="SWSA: Player Login"){

@@ -123,12 +123,6 @@ if(isset($_POST['whichTeam'])){
 		<body>
 		<div id="wrapper">
 			<h3>Southwest Washington Soccer Association</h3> 
-			<div id="menu_left">
-				<p>Hello ' . $_SESSION['fname'] . '</p>';
-				
-				include 'user_left_menu.php'; 
-				
-			echo '</div><!-- closes menu_left div -->
 			<div id="content_right">
 				<p>You can modify the team name and team color. If you want to change leagues, it is best to create a new team to verify all the players are eligible.</p>
 			<form name="modify_team" action="user_add_team.php" method="POST" />

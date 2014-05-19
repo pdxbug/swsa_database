@@ -267,7 +267,7 @@ filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
 						</form>';
 					}
 					$captain_array = array();
-					if($row0[rep_1]==""){
+					if($row0['rep_1']==""){
 						$rep_1 = 0;
 					} else {
 						$rep_1 = 1;
@@ -280,7 +280,7 @@ filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
 						$captain_fetch = mysql_fetch_array($captain_1_result,MYSQL_ASSOC);
 						$captain_array[0][]= $captain_fetch;
 					}
-					if($row0[rep_2]==""){
+					if($row0['rep_2']==""){
 						$rep_2 = 0;
 					} else {
 						$rep_2 = 1;
@@ -397,6 +397,7 @@ filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
 						$date_exp_Ymd = explode('-',date("Y-n-j"));
 						//print_r($card_exp_Ymd);
 						//print_r($date_exp_Ymd);
+						$set_color = '';
 						if($card_exp_Ymd[0]<$date_exp_Ymd[0]){
 									echo '<font color="red">';
 									$set_color=1;
@@ -438,6 +439,9 @@ filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
 						} 
 						echo '</td>';
 						if(($_SESSION['admin']==1)||($team_cpt == 1)){
+							if(!isset($set_option)){
+								$set_option = 1;
+							}
 							echo '<td><form action="user_cpt_add_player.php" method="GET" name="captain_options_' . $i . '">
 							<input type="hidden" name="whichLeague" value="' . $_GET['whichLeague'] . '" />
 							<input type="hidden" name="whichTeam" value="' . $_GET['whichTeam'] . '" />';
@@ -587,6 +591,7 @@ filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
 				$date_exp_Ymd = explode('-',date("Y-n-j"));
 				//print_r($card_exp_Ymd);
 				//print_r($date_exp_Ymd);
+				$set_color = '';
 				if($card_exp_Ymd[0]<$date_exp_Ymd[0]){
 							echo '<font color="red">';
 							$set_color=1;
@@ -844,6 +849,7 @@ filter: progid:DXImageTransform.Microsoft.Shadow(color=gray,direction=135);
 					$date_exp_Ymd = explode('-',date("Y-n-j"));
 					//print_r($card_exp_Ymd);
 					//print_r($date_exp_Ymd);
+					$set_color = '';
 					if($card_exp_Ymd[0]<$date_exp_Ymd[0]){
 								echo '<font color="red">';
 								$set_color=1;

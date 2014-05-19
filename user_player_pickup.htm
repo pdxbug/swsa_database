@@ -90,8 +90,8 @@ autosubmit script found here: http://www.htmlgoodies.com/beyond/javascript/artic
 					$cpt_teams = array();
 					$i=0;
 					while ($cpt_result_row = mysql_fetch_array($cpt_result, MYSQL_ASSOC)){
-						$cpt_teams[$i][id] = $cpt_result_row[id];
-						$cpt_teams[$i][team_name] = $cpt_result_row[team_name];
+						$cpt_teams[$i]['id'] = $cpt_result_row['id'];
+						$cpt_teams[$i]['team_name'] = $cpt_result_row['team_name'];
 						$i++;
 					}
 					//print_r($cpt_teams);
@@ -145,7 +145,7 @@ autosubmit script found here: http://www.htmlgoodies.com/beyond/javascript/artic
 									echo '<td>
 										<form action="user_cpt_add_player.php" method="GET" name="add_player">
 											<input type="hidden" name="whichLeague" value="' . $whichLeague . '" />
-											<input type="hidden" name="id" value="' . $row[player_id] , '" />
+											<input type="hidden" name="id" value="' . $row['player_id'] , '" />
 											<input type="hidden" name="pickup" value="' . $row[pickupid] . '" />
 											<select name="whichTeam">
 												<option value=""></option>';
