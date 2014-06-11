@@ -26,7 +26,7 @@ $card_exp = isset($_REQUEST['date1']) ? $_REQUEST['date1'] : "";
 $pref_pos = $_POST['pref_pos'];
 
 //verify the CAPTCHA information was correct
-include_once $server_url . '/securimage/securimage.php';
+include_once 'securimage/securimage.php';
 $securimage = new Securimage();
 
 if ($securimage->check($_POST['captcha_code']) == false) {
