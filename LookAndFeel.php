@@ -47,7 +47,7 @@ echo <<<top
 		  <tr><td >
 top;
 
-		  if($sTitle!="SWSA: Player Login"){
+		  if(($sTitle!="SWSA: Player Login")&&($sTitle!="SWSA: New Player Registration Page")&&($sTitle!="SWSA: Player Forgot CardID Page")){
 		  	include 'user_left_menu.php';
 		  };
 
